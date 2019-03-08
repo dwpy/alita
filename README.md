@@ -1,7 +1,6 @@
 ## Alita
 
-Alita is a lightweight python async web application framework,\
-It need Python3.5+ version at least。
+Alita is a lightweight python async web application framework, It need Python3.5+ version at least。
 
 
 ## Installing

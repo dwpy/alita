@@ -23,6 +23,7 @@ setup(
     author='Dongwei',
     description='A simple Python async framework for building web applications. ',
     long_description=readme,
+    long_description_content_type="text/markdown",
     packages=[
         'alita',
         'alita.serve',
