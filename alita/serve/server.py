@@ -276,6 +276,7 @@ class HttpProtocol(asyncio.Protocol):
     async def on_response(self, response):
         # Callback for pipelined HTTP requests to be started.
         self.server_state.total_requests += 1
+        response.set_protocol(self)
         output_content = await response.output(
             self.environ["http_version"],
             self.environ["keep_alive"],
@@ -320,6 +321,9 @@ class HttpProtocol(asyncio.Protocol):
         Called on a keep-alive connection if no new data is received after a short delay.
         """
         self.shutdown()
+
+    def push_data(self, data):
+        self.transport.write(data)
 
 
 class ServerState:

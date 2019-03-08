@@ -373,3 +373,14 @@ def parse_options_header(value, multiple=False):
         value = rest
 
     return tuple(result) if result else ('', {})
+
+
+def total_seconds(td):
+    """Returns the total seconds from a timedelta object.
+
+    :param timedelta td: the timedelta to be converted in seconds
+
+    :returns: number of seconds
+    :rtype: int
+    """
+    return td.days * 60 * 60 * 24 + td.seconds

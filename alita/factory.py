@@ -24,3 +24,7 @@ class AppFactory(BaseFactory):
     def create_router_object(self):
         from alita.routing import Router
         return Router(self.app)
+
+    def create_static_handler(self):
+        from alita.handler import StaticHandler
+        return StaticHandler(self.app)

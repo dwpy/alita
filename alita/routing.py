@@ -12,10 +12,6 @@ class NoMatchFound(NotFound):
     pass
 
 
-class RouteBuildError(InternalServerError):
-    pass
-
-
 class Match(Enum):
     NONE = 0
     PARTIAL = 1
@@ -34,8 +30,8 @@ def replace_params(path, param_converters, path_params):
     return path
 
 
-# Match parameters in URL paths, eg. '{param}', and '{param:int}'
-PARAM_REGEX = re.compile("{([a-zA-Z_][a-zA-Z0-9_]*)(:[a-zA-Z_][a-zA-Z0-9_]*)?}")
+# Match parameters in URL paths, eg. '<param_name:int/float/str/path>'
+PARAM_REGEX = re.compile("<([a-zA-Z_][a-zA-Z0-9_]*)(:[a-zA-Z_][a-zA-Z0-9_]*)?>")
 
 
 def compile_path(path):
@@ -48,7 +44,7 @@ def compile_path(path):
         param_name, converter_type = match.groups("str")
         converter_type = converter_type.lstrip(":")
         if converter_type not in CONVERTER_TYPES:
-            raise RouteBuildError(f"Unknown path converter '{converter_type}'")
+            raise RuntimeError(f"Unknown path converter '{converter_type}'")
         converter = CONVERTER_TYPES[converter_type]
         path_regex += path[idx: match.start()]
         path_regex += f"(?P<{param_name}>{converter.regex})"

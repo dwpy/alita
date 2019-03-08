@@ -1,7 +1,11 @@
+import os
 import sys
+import time
 import logging
-from alita.base import BaseExceptionHandler
-from alita.exceptions import default_exceptions, InternalServerError
+from alita.base import BaseExceptionHandler, BaseStaticHandler
+from alita.exceptions import default_exceptions, NotFound, BadRequest,\
+    InternalServerError
+from alita.response import FileResponse
 
 
 class ExceptionHandler(BaseExceptionHandler):
@@ -63,3 +67,21 @@ class ExceptionHandler(BaseExceptionHandler):
             return await self.app.get_awaitable_result(handler, request, exc)
         except Exception as ex:
             return await self.process_exception(request, ex)
+
+
+class StaticHandler(BaseStaticHandler):
+    async def send_static_file(self, request, file_name):
+        if not self.has_static_folder:
+            raise RuntimeError('No static folder for this object')
+        file_max_age = self.send_file_max_age
+        filename = os.path.join(self.static_folder, file_name)
+        try:
+            if not os.path.isfile(filename):
+                raise NotFound()
+        except (TypeError, ValueError):
+            raise BadRequest()
+        headers = {}
+        if file_max_age is not None:
+            headers['Cache-Control'] = 'max-age=%s' % file_max_age
+            headers['Expires'] = time.time() + file_max_age
+        return FileResponse(filename, headers=headers)

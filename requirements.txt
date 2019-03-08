@@ -8,3 +8,4 @@ itsdangerous
 httptools
 websockets
 gunicorn
+aiofiles

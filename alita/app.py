@@ -1,3 +1,4 @@
+import os
 import six
 import sys
 import inspect
@@ -36,7 +37,7 @@ class Alita(object):
     session_cookie_expire = ConfigAttribute('SESSION_COOKIE_EXPIRE')
     session_engine_config = ConfigAttribute('SESSION_ENGINE_CONFIG')
     session_table_name = ConfigAttribute('SESSION_TABLE_NAME')
-    send_file_max_age_default = ConfigAttribute('SEND_FILE_MAX_AGE_DEFAULT')
+    send_file_max_age = ConfigAttribute('SEND_FILE_MAX_AGE')
 
     default_config = ImmutableDict({
         'DEBUG': False,
@@ -57,7 +58,7 @@ class Alita(object):
         'SESSION_USE_SIGNER': False,
         'SESSION_REFRESH_EACH_REQUEST': True,
         'MAX_CONTENT_LENGTH': None,
-        'SEND_FILE_MAX_AGE_DEFAULT': 12 * 60 * 60,
+        'SEND_FILE_MAX_AGE': 12 * 60 * 60,
         'TRAP_BAD_REQUEST_ERRORS': None,
         'TRAP_HTTP_EXCEPTIONS': False,
         'EXPLAIN_TEMPLATE_LOADING': False,
@@ -89,9 +90,12 @@ class Alita(object):
         ],
     })
 
-    def __init__(self, name=None, subdomain_matching=False):
+    def __init__(self, name=None, subdomain_matching=False, static_folder=None,
+                 static_url_path=None):
         self.name = name
         self.view_functions = {}
+        self.static_folder = static_folder
+        self.static_url_path = static_url_path
         self.subdomain_matching = subdomain_matching
         self.config = None
         self.is_running = False
@@ -108,6 +112,7 @@ class Alita(object):
             "APP_FACTORY_CLASS", self._default_factory_class))
         self.app_factory = self.app_factory_class(self)
         self.exception_handler = None
+        self.static_handler = None
         self.router = None
         self.make_factory()
 
@@ -173,6 +178,7 @@ class Alita(object):
         self.exception_class = self.app_factory.create_base_exception_class()
         self.exception_handler = self.app_factory.create_exception_handler_object()
         self.router = self.app_factory.create_router_object()
+        self.static_handler = self.app_factory.create_static_handler()
 
     def error_handler(self, code_or_exception):
         def decorator(func):

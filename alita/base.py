@@ -1,3 +1,4 @@
+import os
 import sys
 import json
 import http.cookies
@@ -218,7 +219,7 @@ class BaseRequest(object):
 
 
 class BaseResponse:
-    __slots__ = ("body", "status", "content_type", "headers", "_cookies")
+    __slots__ = ("body", "status", "content_type", "headers", "_cookies", "_protocol")
 
     charset = 'utf-8'
     max_cookie_size = 4093
@@ -229,11 +230,20 @@ class BaseResponse:
         self.status = status
         self.headers = CIMultiDict(headers or {})
         self._cookies = None
+        self._protocol = None
+
+    def set_protocol(self, protocol):
+        self._protocol = protocol
+
+    def has_protocol(self):
+        return self._protocol is not None
 
     @staticmethod
     def _encode_body(data):
         try:
-            return data.encode()
+            if not isinstance(data, bytes):
+                return data.encode()
+            return data
         except AttributeError:
             return str(data or "").encode()
 
@@ -276,22 +286,13 @@ class BaseResponse:
     def delete_cookie(self, key, path="/", domain=None):
         self.set_cookie(key, expires=0, max_age=0, path=path, domain=domain)
 
-    async def output(self, version="1.1", keep_alive=False, keep_alive_timeout=None):
+    def get_headers(self, version="1.1", keep_alive=False, keep_alive_timeout=None):
         timeout_header = b""
         if keep_alive and keep_alive_timeout is not None:
             timeout_header = b"Keep-Alive: %d\r\n" % keep_alive_timeout
-
-        body = b""
-        if has_message_body(self.status):
-            body = self.body
-            self.headers["Content-Length"] = self.headers.get(
-                "Content-Length", len(self.body)
-            )
-
         self.headers["Content-Type"] = self.headers.get(
             "Content-Type", self.content_type
         )
-
         if self.status in (304, 412):
             self.headers = remove_entity_headers(self.headers)
         headers = self._parse_headers()
@@ -301,19 +302,29 @@ class BaseResponse:
             description = STATUS_TEXT.get(self.status, b"UNKNOWN RESPONSE")
 
         return (
-            b"HTTP/%b %d %b\r\n" b"Connection: %b\r\n" b"%b" b"%b\r\n" b"%b"
+            b"HTTP/%b %d %b\r\n" b"Connection: %b\r\n" b"%b" b"%b\r\n"
         ) % (
             version.encode(),
             self.status,
             description,
             b"keep-alive" if keep_alive else b"close",
             timeout_header,
-            headers,
-            body,
+            headers
         )
 
-    async def stream(self, version="1.1", keep_alive=False, keep_alive_timeout=None):
-        pass
+    async def output(self, version="1.1", keep_alive=False, keep_alive_timeout=None):
+        if has_message_body(self.status):
+            body = self.body
+            self.headers["Content-Length"] = self.headers.get(
+                "Content-Length", len(self.body)
+            )
+        else:
+            body = b""
+        return self.get_headers(
+            version,
+            keep_alive,
+            keep_alive_timeout
+        ) + b"%b" % body
 
 
 class BaseHTTPException(Exception):
@@ -447,4 +458,32 @@ class BaseConverter:
         raise NotImplementedError()
 
     def to_string(self, value):
+        raise NotImplementedError()
+
+
+class BaseStaticHandler:
+    def __init__(self, app):
+        self.app = app
+        self.static_folder = self.app.static_folder
+        self.static_url_path = self.app.static_url_path
+        self.send_file_max_age = self.app.send_file_max_age
+        if self.static_folder:
+            self.app.add_url_rule(
+                self.get_static_url_path() + '/<file_name:path>',
+                endpoint='static',
+                view_func=self.send_static_file
+            )
+
+    @property
+    def has_static_folder(self):
+        return self.static_folder is not None
+
+    def get_static_url_path(self):
+        if self.static_url_path is not None:
+            return self.static_url_path
+
+        if self.static_folder is not None:
+            return '/' + os.path.basename(self.static_folder)
+
+    async def send_static_file(self, request, file_name):
         raise NotImplementedError()
