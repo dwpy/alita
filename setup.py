@@ -5,7 +5,7 @@ import re
 from setuptools import setup
 from collections import OrderedDict
 
-with io.open('README.rst', 'rt', encoding='utf8') as f:
+with io.open('README.md', 'rt', encoding='utf8') as f:
     readme = f.read()
 
 with io.open('alita/__init__.py', 'rt', encoding='utf8') as f:
@@ -45,10 +45,17 @@ setup(
         'gunicorn',
         'aiofiles',
     ],
+    extras_require={
+        'dotenv': ['python-dotenv'],
+        'docs': [
+            'sphinx',
+            'pallets-sphinx-themes',
+            'sphinxcontrib-log-cabinet',
+        ]
+    },
     classifiers=[
-        'Development Status :: Developing',
+        'Development Status :: 1 - Planning',
         'Environment :: Web Environment',
-        'Framework :: Alita',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
