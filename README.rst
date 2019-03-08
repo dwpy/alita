@@ -35,5 +35,5 @@ Start
 Links
 -----
 
-* Code: https://github.com/dwdw520533/alita
-* Docs: https://dwdw520533.github.io/alita
+* Code: https://github.com/dwpy/alita
+* Docs: https://dwpy.github.io/alita
