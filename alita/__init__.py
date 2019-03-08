@@ -1,10 +1,4 @@
 from alita.app import Alita
 from alita.response import HtmlResponse, TextResponse, JsonResponse
 
-
-__all__ = [
-    "Alita",
-    "HtmlResponse",
-    "TextResponse",
-    "JsonResponse"
-]
+__version__ = '1.0.dev'
