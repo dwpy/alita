@@ -2,7 +2,7 @@
 import json
 import types
 import errno
-from alita.utils import import_string
+from alita.helpers import import_string
 
 
 class ConfigAttribute(object):

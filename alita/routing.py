@@ -4,7 +4,7 @@ from enum import Enum
 from alita.base import BaseRoute, BaseRouter
 from alita.converters import CONVERTER_TYPES
 from urllib.parse import urljoin
-from alita.utils import set_query_parameter, get_request_url
+from alita.helpers import set_query_parameter, get_request_url
 from alita.exceptions import NotFound, BadRequest, InternalServerError
 
 

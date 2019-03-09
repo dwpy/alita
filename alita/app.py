@@ -12,8 +12,7 @@ from inspect import isawaitable
 from alita.datastructures import ImmutableDict
 from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
-from alita.utils import import_string, ImportFromStringError, check_serialize
-from alita.base import BaseMiddleware
+from alita.helpers import import_string, check_serialize, Extensions
 from alita.response import HtmlResponse, JsonResponse
 from alita.exceptions import InternalServerError
 
@@ -105,8 +104,8 @@ class Alita(object):
         self.after_request_funcs = {}
         self.error_handler_spec = {}
         self.blueprints = {}
+        self.extensions = Extensions()
         self.logger = logging.getLogger(__name__)
-        self.load_middleware()
 
         self.app_factory_class = import_string(self.config.get(
             "APP_FACTORY_CLASS", self._default_factory_class))
@@ -119,38 +118,6 @@ class Alita(object):
     @property
     def debug(self):
         return self.config['DEBUG']
-
-    def load_middleware(self):
-        """
-        Populate middleware lists from settings.MIDDLEWARE.
-
-        Must be called after the environment is fixed (see __call__ in subclasses).
-        """
-        self._view_middleware = []
-        for middleware_path in reversed(self.config['MIDDLEWARE']):
-            try:
-                middleware_class = import_string(middleware_path)
-                if not issubclass(middleware_class, BaseMiddleware):
-                    raise TypeError('Middleware class must implement by '
-                                    'BaseMiddleware: %r', middleware_path)
-                self._view_middleware.append(middleware_class(self))
-            except ImportFromStringError as exc:
-                self.logger.debug('Middleware import error: %r', middleware_path)
-                raise exc
-
-    def register_middleware(self, middleware_class):
-        if middleware_class in self._view_middleware:
-            raise Exception("register middleware repeated!")
-        self._view_middleware.append(middleware_class(self))
-
-    async def process_request_middleware(self, request):
-        for middleware in self._view_middleware:
-            await middleware.process_request(request)
-
-    async def process_response_middleware(self, request, response):
-        for middleware in self._view_middleware:
-            response = await middleware.process_response(request, response)
-        return response
 
     def before_request(self, f):
         self.before_request_funcs.setdefault(None, []).append(f)
@@ -299,13 +266,11 @@ class Alita(object):
     async def full_dispatch_request(self, request):
         try:
             signals.request_started.send(self)
-            await self.process_request_middleware(request)
             response = await self.preprocess_request(request)
             if response is None:
                 response = await self.dispatch_request(request)
             response = await self.finalize_request(request, response)
-            response = await self.finalize_response(response)
-            return await self.process_response_middleware(request, response)
+            return await self.finalize_response(response)
         except Exception as ex:
             exception = await self.exception_handler.process_exception(request, ex)
             raise exception

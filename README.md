@@ -5,7 +5,7 @@ Alita is a lightweight python async web application framework, It need Python3.5
 
 ## Installing
 ```
-pip install -r requirements.txt
+pip install alita
 ```
 
 ## Quick Start

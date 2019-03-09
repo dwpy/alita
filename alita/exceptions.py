@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from alita.utils import escape
+from alita.helpers import escape
 from alita.constants import *
 from alita.base import BaseHTTPException, BaseResponse
 

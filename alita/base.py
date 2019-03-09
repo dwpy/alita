@@ -5,8 +5,8 @@ import http.cookies
 from urllib import parse
 from multidict import CIMultiDict
 from alita.serve import STATUS_TEXT
-from alita.utils import get_request_url
-from alita.utils import cached_property, to_unicode, \
+from alita.helpers import get_request_url
+from alita.helpers import cached_property, to_unicode, \
     has_message_body, remove_entity_headers, parse_options_header
 
 

@@ -8,7 +8,7 @@ import traceback
 import click
 import logging
 from alita import __version__
-from .utils import OSUtils
+from alita.utils import OSUtils
 
 
 def get_system_info():

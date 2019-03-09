@@ -27,7 +27,6 @@ setup(
     packages=[
         'alita',
         'alita.serve',
-        'alita.contrib'
     ],
     include_package_data=True,
     zip_safe=False,
@@ -66,7 +65,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'alita = alita.contrib.command.cli:main',
+            'alita = alita.cli:main',
         ],
     },
 )
