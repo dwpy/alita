@@ -200,7 +200,7 @@ class HttpProtocol(asyncio.Protocol):
             "client": self.client,
             "scheme": self.scheme,
             "host": self.server[0],
-            "port": self.server[1],
+            "port": int(self.server[1]),
             "method": method.decode("ascii"),
             "root_path": self.root_path,
             "path": path,

@@ -49,7 +49,7 @@ class Blueprint(BaseBlueprint):
         if endpoint is None:
             endpoint = self.app.get_endpoint_from_view_func(view_func)
         options['endpoint'] = '%s.%s' % (self.name, endpoint)
-        self.app.add_url_rule(rule, view_func, **options)
+        self.app.add_url_rule(view_func, rule, **options)
 
     def add_url_rule(self, rule, view_func, **options):
         endpoint = options.get('endpoint')

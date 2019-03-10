@@ -166,7 +166,7 @@ class Alita(object):
     def get_endpoint_from_view_func(view_func):
         return view_func.__name__
 
-    def add_url_rule(self, rule, view_func, endpoint=None, methods=None):
+    def add_url_rule(self, view_func, rule, endpoint=None, methods=None):
         if endpoint is None:
             endpoint = self.get_endpoint_from_view_func(view_func)
         if methods is None:
@@ -186,7 +186,7 @@ class Alita(object):
 
     def route(self, rule, **options):
         def decorator(f):
-            self.add_url_rule(rule, f, **options)
+            self.add_url_rule(f, rule,  **options)
             return f
         return decorator
 

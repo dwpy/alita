@@ -173,7 +173,7 @@ class BaseRequest(object):
         return self.environ.get("query_string")
 
     @cached_property
-    def path_params(self):
+    def args(self):
         """
         Just the request query string.
         """
@@ -469,9 +469,9 @@ class BaseStaticHandler:
         self.send_file_max_age = self.app.send_file_max_age
         if self.static_folder:
             self.app.add_url_rule(
+                self.send_static_file,
                 self.get_static_url_path() + '/<file_name:path>',
-                endpoint='static',
-                view_func=self.send_static_file
+                endpoint='static'
             )
 
     @property
