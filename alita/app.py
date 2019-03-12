@@ -106,11 +106,11 @@ class Alita(object):
     def debug(self):
         return self.config['DEBUG']
 
-    def before_request(self, f):
+    def request_middleware(self, f):
         self.before_request_funcs.setdefault(None, []).append(f)
         return f
 
-    def after_request(self, f):
+    def response_middleware(self, f):
         self.after_request_funcs.setdefault(None, []).append(f)
         return f
 

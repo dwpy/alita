@@ -60,6 +60,7 @@ def cli(ctx, project_dir, debug=False):
     ctx.obj["os_utils"] = OSUtils()
     ctx.obj['factory'] = CliFactory()
     os.chdir(project_dir)
+    config_logging()
 
 
 @cli.command('run', short_help='Runs a development server.')

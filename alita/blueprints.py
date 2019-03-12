@@ -67,10 +67,10 @@ class Blueprint(BaseBlueprint):
             return f
         return decorator
 
-    def before_request(self, f):
+    def request_middleware(self, f):
         self.record(lambda s: s.app.before_request_funcs.setdefault(self.name, []).append(f))
         return f
 
-    def after_request(self, f):
+    def response_middleware(self, f):
         self.record(lambda s: s.app.after_request_funcs.setdefault(self.name, []).append(f))
         return f
