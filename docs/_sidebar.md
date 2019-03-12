@@ -4,6 +4,7 @@
   - [中间件](middleware.md)
   - [请求](request.md)
   - [响应](response.md)
+  - [异常](exception.md)
 
 - 配置
   - [加载配置](configuration_load.md)
