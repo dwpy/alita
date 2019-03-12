@@ -1,5 +1,4 @@
 import os
-import sys
 import six
 import inspect
 import logging
@@ -73,21 +72,8 @@ class Alita(object):
         'SESSION_EXPIRE_AT_BROWSER_CLOSE': False,
         'SESSION_MUST_SAVE': True,
         'SESSION_TABLE_NAME': 'session',
-        "SESSION_ENGINE": "alita.contrib.sessions.backends.mysql",
-        # 'SESSION_ENGINE_CONFIG': {
-        #     'db': 'gezi',
-        #     'host': '192.168.4.5',
-        # },
-        'SESSION_ENGINE_CONFIG': {
-            'host': '192.168.4.5',
-            'port': 3306,
-            'username': 'root',
-            'password': 'tianfu',
-            'database': 'gezi'
-        },
-        'MIDDLEWARE': [
-            "alita.contrib.sessions.middleware.SessionMiddleware"
-        ],
+        "SESSION_ENGINE": None,
+        'SESSION_ENGINE_CONFIG': None
     })
 
     def __init__(self, name=None, subdomain_matching=False, static_folder=None,
@@ -191,10 +177,18 @@ class Alita(object):
             return f
         return decorator
 
-    def run(self, **kwargs):
-        config = ServerConfig(**kwargs)
-        server = Server(self, config=config)
-        server.run()
+    def run(self, extra_files=None, auto_reload=None, reload_interval=1, **kwargs):
+        def inner(loop=None):
+            server = Server(self, config=ServerConfig(loop=loop, **kwargs))
+            server.run()
+
+        def _log(type, message, *args, **kwargs):
+            getattr(self.logger, type)(message.rstrip(), *args, **kwargs)
+
+        if auto_reload and os.environ.get("SERVER_RUN_MAIN") != "true":
+            run_auto_reload(extra_files, reload_interval, _log)
+        else:
+            inner()
 
     async def preprocess_request(self, request):
         bp = request.blueprint

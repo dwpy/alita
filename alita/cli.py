@@ -1,15 +1,18 @@
 """
-Command line interface for alit.
+Command line interface for alita.
 """
+from __future__ import print_function, absolute_import
+
 import os
 import sys
 import platform
 import traceback
-import importlib
 import click
 import logging
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+
 from alita import __version__
-from .utils import OSUtils
+from alita.utils import OSUtils
 
 
 def get_system_info():
@@ -36,24 +39,6 @@ def config_logging(file_name=None):
     root_logger.addHandler(console_handler)
 
 
-def load_app(project_dir, app_module):
-    try:
-        if not app_module:
-            app_module = 'app'
-        app_module = importlib.import_module(app_module)
-        app = getattr(app_module, 'app')
-        app.root_path = project_dir
-    except SyntaxError as e:
-        message = (
-                      'Unable to import your app.py file:\n\n'
-                      'File "%s", line %s\n'
-                      '  %s\n'
-                      'SyntaxError: %s'
-                  ) % (getattr(e, 'filename'), e.lineno, e.text, e.msg)
-        raise RuntimeError(message)
-    return app
-
-
 @click.group()
 @click.version_option(version=__version__,
                       message='%(prog)s %(version)s, {}'
@@ -65,6 +50,7 @@ def load_app(project_dir, app_module):
               help='Print debug logs to stderr.')
 @click.pass_context
 def cli(ctx, project_dir, debug=False):
+    from alita.factory import CliFactory
     if project_dir is None:
         project_dir = os.getcwd()
     else:
@@ -72,6 +58,7 @@ def cli(ctx, project_dir, debug=False):
     ctx.obj['project_dir'] = project_dir
     ctx.obj['debug'] = debug
     ctx.obj["os_utils"] = OSUtils()
+    ctx.obj['factory'] = CliFactory()
     os.chdir(project_dir)
 
 
@@ -80,18 +67,18 @@ def cli(ctx, project_dir, debug=False):
               help='The interface to bind to.')
 @click.option('--port', '-p', default=5000,
               help='The port to bind to.')
-@click.option('--app', '-a', default='',
+@click.option('--app', '-A', default='',
               help='The alita app module.')
-@click.option('--reload/--no-reload', default=True,
+@click.option('--auto-reload/--no-auto-reload', default=True,
               help='Enable or disable the reloader. By default the reloader '
               'is active if debug is enabled.')
 @click.option('--debugger/--no-debugger', default=True,
               help='Enable or disable the debugger. By default the debugger '
               'is active if debug is enabled.')
 @click.pass_context
-def run(ctx, host, port, app, reload, debugger):
-    app = load_app(ctx.obj['project_dir'], app)
-    app.run(host=host, port=port)
+def run(ctx, host, port, app, auto_reload, debugger):
+    app = ctx.obj['factory'].load_app(app)
+    app.run(host=host, port=port, auto_reload=auto_reload)
 
 
 def main():

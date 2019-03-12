@@ -345,6 +345,7 @@ class Server(object):
         self.started = False
         self.loop = config.loop
         self.logger = config.logger
+        self.socket = config.socket
         self.servers = []
         self.server_state = server_state or ServerState()
 

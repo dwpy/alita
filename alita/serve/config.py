@@ -15,7 +15,10 @@ def init_loop(uvloop=True):
     if uvloop:
         try:
             import uvloop
-            asyncio.get_event_loop().close()
+            try:
+                asyncio.get_event_loop().close()
+            except:
+                pass
             asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         except ImportError:
             pass
