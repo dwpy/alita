@@ -5,10 +5,11 @@ import os
 import sys
 import platform
 import traceback
+import importlib
 import click
 import logging
 from alita import __version__
-from alita.utils import OSUtils
+from .utils import OSUtils
 
 
 def get_system_info():
@@ -35,6 +36,24 @@ def config_logging(file_name=None):
     root_logger.addHandler(console_handler)
 
 
+def load_app(project_dir, app_module):
+    try:
+        if not app_module:
+            app_module = 'app'
+        app_module = importlib.import_module(app_module)
+        app = getattr(app_module, 'app')
+        app.root_path = project_dir
+    except SyntaxError as e:
+        message = (
+                      'Unable to import your app.py file:\n\n'
+                      'File "%s", line %s\n'
+                      '  %s\n'
+                      'SyntaxError: %s'
+                  ) % (getattr(e, 'filename'), e.lineno, e.text, e.msg)
+        raise RuntimeError(message)
+    return app
+
+
 @click.group()
 @click.version_option(version=__version__,
                       message='%(prog)s %(version)s, {}'
@@ -56,6 +75,25 @@ def cli(ctx, project_dir, debug=False):
     os.chdir(project_dir)
 
 
+@cli.command('run', short_help='Runs a development server.')
+@click.option('--host', '-h', default='127.0.0.1',
+              help='The interface to bind to.')
+@click.option('--port', '-p', default=5000,
+              help='The port to bind to.')
+@click.option('--app', '-a', default='',
+              help='The alita app module.')
+@click.option('--reload/--no-reload', default=True,
+              help='Enable or disable the reloader. By default the reloader '
+              'is active if debug is enabled.')
+@click.option('--debugger/--no-debugger', default=True,
+              help='Enable or disable the debugger. By default the debugger '
+              'is active if debug is enabled.')
+@click.pass_context
+def run(ctx, host, port, app, reload, debugger):
+    app = load_app(ctx.obj['project_dir'], app)
+    app.run(host=host, port=port)
+
+
 def main():
     try:
         return cli(obj={})
@@ -63,3 +101,7 @@ def main():
         print(ex)
         click.echo(traceback.format_exc(), err=True)
         return 2
+
+
+if __name__ == '__main__':
+    main()

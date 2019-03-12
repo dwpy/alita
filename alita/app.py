@@ -1,6 +1,6 @@
 import os
-import six
 import sys
+import six
 import inspect
 import logging
 import warnings
@@ -12,9 +12,10 @@ from inspect import isawaitable
 from alita.datastructures import ImmutableDict
 from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
-from alita.helpers import import_string, check_serialize, Extensions
+from alita.helpers import import_string, check_serialize
 from alita.response import HtmlResponse, JsonResponse
 from alita.exceptions import InternalServerError
+from collections import UserDict
 
 
 class Alita(object):
@@ -104,7 +105,7 @@ class Alita(object):
         self.after_request_funcs = {}
         self.error_handler_spec = {}
         self.blueprints = {}
-        self.extensions = Extensions()
+        self.extensions = UserDict()
         self.logger = logging.getLogger(__name__)
 
         self.app_factory_class = import_string(self.config.get(

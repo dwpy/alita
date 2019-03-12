@@ -374,14 +374,3 @@ def parse_options_header(value, multiple=False):
         value = rest
 
     return tuple(result) if result else ('', {})
-
-
-class Extensions(UserDict):
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError:
-            raise RuntimeError("App has no extension %s" % name)
-
-    def __setattr__(self, name, ext_object):
-        self[name] = ext_object
