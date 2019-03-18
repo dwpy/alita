@@ -4,6 +4,6 @@
 
 `Alita` a lightweight python async web server.
 
-![Alita](https://dwpy.github.io/alita/alita_img.jpg)
+![Alita](https://dwpy.github.io/alita/images/alita_img.jpg)
 
 

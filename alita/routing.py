@@ -106,7 +106,7 @@ class Route(BaseRoute):
             matched_params = match.groupdict()
             for key, value in matched_params.items():
                 matched_params[key] = self.param_converters[key].convert(value)
-            path_params = dict(request.path_params, **matched_params)
+            path_params = dict(request.args, **matched_params)
             if self.methods and request.method not in self.methods:
                 status = Match.PARTIAL
             else:

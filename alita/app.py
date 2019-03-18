@@ -12,7 +12,7 @@ from alita.datastructures import ImmutableDict
 from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
 from alita.helpers import import_string, check_serialize
-from alita.response import HtmlResponse, JsonResponse
+from alita.response import TextResponse, JsonResponse
 from alita.exceptions import InternalServerError
 from collections import UserDict
 
@@ -196,7 +196,7 @@ class Alita(object):
         if bp is not None and bp in self.before_request_funcs:
             funcs = itertools.chain(funcs, self.before_request_funcs[bp])
         for func in funcs:
-            rv = self.get_awaitable_result(func)
+            rv = await self.get_awaitable_result(func, request)
             if rv is not None:
                 return rv
 
@@ -210,6 +210,16 @@ class Alita(object):
         )
 
     async def make_response(self, response):
+        if isinstance(response, self.response_class):
+            pass
+        elif isinstance(response, self.exception_class):
+            return response.get_response()
+        elif isinstance(response, six.string_types):
+            return TextResponse(response)
+        elif check_serialize(response):
+            return JsonResponse(response)
+        else:
+            raise Exception("Response Object Type invalid!")
         return response
 
     async def get_awaitable_result(self, func, *args, **kwargs):
@@ -225,20 +235,10 @@ class Alita(object):
         if bp is not None and bp in self.after_request_funcs:
             funcs = itertools.chain(funcs, self.after_request_funcs[bp])
         for func in funcs:
-            response = self.get_awaitable_result(func)
+            response = await self.get_awaitable_result(func, request, response)
         return response
 
     async def finalize_response(self, response):
-        if isinstance(response, self.response_class):
-            pass
-        elif isinstance(response, self.exception_class):
-            return response.get_response()
-        elif isinstance(response, six.string_types):
-            return HtmlResponse(response)
-        elif check_serialize(response):
-            return JsonResponse(response)
-        else:
-            raise Exception("Response Object Type invalid!")
         return response
 
     async def finalize_request(self, request, response, from_error_handler=False):
