@@ -31,10 +31,10 @@ class GunicornWorker(Worker):
         self.loop = None
         self._runner = None
         self._server_config = None
+        self.alive = True
 
     def init_process(self):
         self.loop = init_loop()
-        asyncio.set_event_loop(self.loop)
         super().init_process()
 
     def run(self):
@@ -100,6 +100,7 @@ class GunicornWorker(Worker):
                 host=None,
                 port=None,
                 socket=socket,
+                run_async=True,
                 connections=self.connections,
                 **self._server_config
             )
@@ -113,7 +114,7 @@ class GunicornWorker(Worker):
                 self.notify()
 
                 req_count = sum(
-                    self.servers[srv]["total_requests"] for srv in self.servers
+                    self.servers[srv].total_requests for srv in self.servers
                 )
                 if self.max_requests and req_count > self.max_requests:
                     self.alive = False

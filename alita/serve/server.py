@@ -349,6 +349,13 @@ class Server(object):
         self.servers = []
         self.server_state = server_state or ServerState()
 
+        if not self.config.run_async:
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+
+        if self.config.debug:
+            self.loop.set_debug(True)
+
     def install_signal_handlers(self):
         try:
             for sig in (signal.SIGINT, signal.SIGTERM):
@@ -372,10 +379,13 @@ class Server(object):
             self.config.port,
             ssl=self.config.ssl,
             reuse_port=self.config.reuse_port,
-            sock=self.config.socket,
+            sock=self.socket,
             backlog=self.config.backlog,
             **asyncio_server_kwargs
         )
+
+        if self.config.run_async:
+            return server_coroutine
 
         try:
             http_server = self.loop.run_until_complete(server_coroutine)

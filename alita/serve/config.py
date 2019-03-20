@@ -11,7 +11,7 @@ def get_logger(log_level):
     return logger
 
 
-def init_loop(uvloop=True):
+def init_loop(uvloop=True, create=True):
     if uvloop:
         try:
             import uvloop
@@ -22,6 +22,9 @@ def init_loop(uvloop=True):
             asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
         except ImportError:
             pass
+    if create:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
     return asyncio.get_event_loop()
 
 
@@ -59,7 +62,8 @@ class ServerConfig:
         asyncio_server_kwargs=None,
         graceful_shutdown_timeout=10.0,
         keep_alive_timeout=5,
-        default_headers=None
+        default_headers=None,
+        run_async=False
     ):
         self.host = host
         self.port = port
@@ -74,6 +78,7 @@ class ServerConfig:
         self.access_log = access_log
         self.wsgi = wsgi
         self.debug = debug
+        self.run_async = run_async
         self.backlog = backlog
         self.proxy_headers = proxy_headers
         self.root_path = root_path
