@@ -13,7 +13,7 @@ class ExceptionHandler(BaseExceptionHandler):
     _exception_handlers = None
 
     def __init__(self, app=None, logger=None):
-        super(ExceptionHandler, self).__init__(app)
+        super().__init__(app)
         self._status_handlers = {}
         self._exception_handlers = {}
         self.logger = logger or logging.getLogger(__name__)

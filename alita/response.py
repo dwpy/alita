@@ -21,7 +21,7 @@ class RawResponse(HTTPResponse):
     Returns response object without encoding the body.
     """
     def __init__(self, body, status=200, headers=None, content_type="application/octet-stream"):
-        super(RawResponse, self).__init__(body, status, headers, content_type)
+        super().__init__(body, status, headers, content_type)
 
 
 class HtmlResponse(HTTPResponse):
@@ -29,7 +29,7 @@ class HtmlResponse(HTTPResponse):
     Returns response object with body in html format.
     """
     def __init__(self, body, status=200, headers=None, content_type="text/html; charset=utf-8"):
-        super(HtmlResponse, self).__init__(body, status, headers, content_type)
+        super().__init__(body, status, headers, content_type)
 
 
 class TextResponse(HTTPResponse):
@@ -37,7 +37,7 @@ class TextResponse(HTTPResponse):
     Returns response object with body in text format.
     """
     def __init__(self, body, status=200, headers=None, content_type="text/plain; charset=utf-8"):
-        super(TextResponse, self).__init__(body, status, headers, content_type)
+        super().__init__(body, status, headers, content_type)
 
 
 class JsonResponse(HTTPResponse):
@@ -45,7 +45,7 @@ class JsonResponse(HTTPResponse):
     Returns response object with body in json format.
     """
     def __init__(self, body, status=200, headers=None, content_type="application/json"):
-        super(JsonResponse, self).__init__(body, status, headers, content_type)
+        super().__init__(body, status, headers, content_type)
 
 
 class RedirectResponse(HTTPResponse):
@@ -56,13 +56,13 @@ class RedirectResponse(HTTPResponse):
         headers = headers or {}
         safe_to = quote_plus(to, safe=":/%#?&=@[]!$&'()*+,;")
         headers["Location"] = safe_to
-        super(RedirectResponse, self).__init__(None, status, headers, content_type)
+        super().__init__(None, status, headers, content_type)
 
 
 class StreamHTTPResponse(BaseResponse):
     def __init__(self, stream_fn, status=200, headers=None, content_type="text/plain"):
         self.stream_fn = stream_fn
-        super(StreamHTTPResponse, self).__init__('', status, headers, content_type)
+        super().__init__('', status, headers, content_type)
 
     async def write(self, data):
         data = self._encode_body(data)
@@ -75,8 +75,7 @@ class StreamHTTPResponse(BaseResponse):
                                "stream response can not execute.")
         self.headers["Transfer-Encoding"] = "chunked"
         self.headers.pop("Content-Length", None)
-        headers = super(StreamHTTPResponse, self).output(
-            version, keep_alive, keep_alive_timeout)
+        headers = super().output(version, keep_alive, keep_alive_timeout)
         self._protocol.push_data(headers)
         await self._protocol.drain()
         await self.stream_fn(self)
@@ -96,7 +95,7 @@ class FileResponse(HTTPResponse):
         self.location = location
         self.filename = filename or os.path.split(self.location)[-1]
         self.mime_type = mime_type or mimetypes.guess_type(self.filename)[0] or "text/plain"
-        super(FileResponse, self).__init__('', status, headers, self.mime_type)
+        super().__init__('', status, headers, self.mime_type)
 
     async def output(self, version="1.1", keep_alive=False, keep_alive_timeout=None):
         async with open_async(self.location, mode="rb") as _file:
@@ -112,7 +111,7 @@ class FileResponse(HTTPResponse):
             else:
                 out_stream = await _file.read()
         self.body = self._encode_body(out_stream)
-        return await super(FileResponse, self).output(version, keep_alive, keep_alive_timeout)
+        return await super().output(version, keep_alive, keep_alive_timeout)
 
 
 class StreamResponse(StreamHTTPResponse):
@@ -129,7 +128,7 @@ class StreamResponse(StreamHTTPResponse):
         self.chunk_size = chunk_size
         self.filename = filename or os.path.split(self.location)[-1]
         self.mime_type = mime_type or mimetypes.guess_type(self.filename)[0] or "text/plain"
-        super(StreamResponse, self).__init__(None, status, headers, self.mime_type)
+        super().__init__(None, status, headers, self.mime_type)
 
     async def output(self, version="1.1", keep_alive=False, keep_alive_timeout=None):
         _file = await open_async(self.location, mode="rb")
@@ -156,4 +155,4 @@ class StreamResponse(StreamHTTPResponse):
             finally:
                 await _file.close()
         self.stream_fn = _stream_fn
-        return await super(StreamResponse, self).output(version, keep_alive, keep_alive_timeout)
+        return await super().output(version, keep_alive, keep_alive_timeout)

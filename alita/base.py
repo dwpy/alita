@@ -338,7 +338,7 @@ class BaseHTTPException(Exception):
     description = None
 
     def __init__(self, description=None, response=None, code=None):
-        super(BaseHTTPException, self).__init__(self)
+        super().__init__(self)
         if code is not None:
             self.code = code
         if description is not None:

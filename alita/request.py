@@ -60,7 +60,7 @@ class Request(BaseRequest, JSONMixin):
     routing_exception = None
 
     def __init__(self, app, environ, headers=None):
-        super(Request, self).__init__(app, environ, headers)
+        super().__init__(app, environ, headers)
         self.match_request()
 
     def match_request(self):
