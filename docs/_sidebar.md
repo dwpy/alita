@@ -12,4 +12,6 @@
   - [加载配置](configuration_load.md)
   - [配置项](configuration.md)
 
+- [部署](deploy.md)
+
 - [版本更新](changelog.md)
