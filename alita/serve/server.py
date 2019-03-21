@@ -325,6 +325,24 @@ class HttpProtocol(asyncio.Protocol):
     def push_data(self, data):
         self.transport.write(data)
 
+    def close_if_idle(self):
+        """Close the connection if a request is not being sent or received
+
+        :return: boolean - True if closed, false if staying open
+        """
+        if not self.parser:
+            self.transport.close()
+            return True
+        return False
+
+    def close(self):
+        """
+        Force close the connection.
+        """
+        if self.transport is not None:
+            self.transport.close()
+            self.transport = None
+
 
 class ServerState:
     """
@@ -348,10 +366,6 @@ class Server(object):
         self.socket = config.socket
         self.servers = []
         self.server_state = server_state or ServerState()
-
-        if not self.config.run_async:
-            self.loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self.loop)
 
         if self.config.debug:
             self.loop.set_debug(True)

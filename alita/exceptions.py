@@ -526,6 +526,10 @@ class HTTPVersionNotSupported(HTTPException):
     )
 
 
+class ServerError(ServiceUnavailable):
+    pass
+
+
 default_exceptions = {}
 __all__ = ['HTTPException']
 

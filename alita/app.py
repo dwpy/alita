@@ -4,7 +4,6 @@ import inspect
 import logging
 import warnings
 import itertools
-import traceback
 import alita.signals as signals
 from alita.serve import *
 from inspect import isawaitable
@@ -13,7 +12,7 @@ from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
 from alita.helpers import import_string, check_serialize
 from alita.response import TextResponse, JsonResponse
-from alita.exceptions import InternalServerError
+from alita.exceptions import ServerError
 from collections import UserDict
 
 
@@ -219,7 +218,7 @@ class Alita(object):
         elif check_serialize(response):
             return JsonResponse(response)
         else:
-            raise Exception("Response Object Type invalid!")
+            raise ServerError("Response Object Type invalid!")
         return response
 
     async def get_awaitable_result(self, func, *args, **kwargs):
@@ -252,11 +251,6 @@ class Alita(object):
             self.logger.exception('Request finalizing failed with an '
                                   'error while handling an error')
         return response
-
-    async def make_dispatch_request_exception(self, exp):
-        self.logger.error(str(exp))
-        self.logger.exception(traceback.format_exc())
-        return InternalServerError(description=traceback.format_exc())
 
     async def full_dispatch_request(self, request):
         try:
