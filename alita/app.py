@@ -36,11 +36,10 @@ class Alita(object):
     session_engine_config = ConfigAttribute('SESSION_ENGINE_CONFIG')
     session_table_name = ConfigAttribute('SESSION_TABLE_NAME')
     send_file_max_age = ConfigAttribute('SEND_FILE_MAX_AGE')
+    max_content_length = ConfigAttribute('MAX_CONTENT_LENGTH')
 
     default_config = ImmutableDict({
         'DEBUG': False,
-        'PROPAGATE_EXCEPTIONS': None,
-        'PRESERVE_CONTEXT_ON_EXCEPTION': None,
         'SECRET_KEY': None,
         'SESSION_COOKIE_EXPIRE': 30 * 24 * 60 * 60,
         'USE_X_SENDFILE': False,

@@ -1,6 +1,6 @@
 import json
 from alita.base import BaseRequest
-from alita.exceptions import BadRequest
+from alita.exceptions import BadRequest, RequestEntityTooLarge
 
 
 class JSONMixin(object):
@@ -65,6 +65,9 @@ class Request(BaseRequest, JSONMixin):
 
     def match_request(self):
         try:
+            if self.app.max_content_length and len(self.body) > \
+                    self.app.max_content_length:
+                raise RequestEntityTooLarge()
             self.route_match = self.app.router.match(self)
         except self.app.exception_class as ex:
             self.routing_exception = ex
