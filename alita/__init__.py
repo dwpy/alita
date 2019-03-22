@@ -3,4 +3,4 @@ from alita.worker import GunicornWorker
 from alita.blueprints import Blueprint
 from alita.response import HtmlResponse, TextResponse, JsonResponse
 
-__version__ = '0.1.3'
+__version__ = '0.1.4'
