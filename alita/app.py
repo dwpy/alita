@@ -10,7 +10,7 @@ from inspect import isawaitable
 from alita.datastructures import ImmutableDict
 from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
-from alita.helpers import import_string, check_serialize
+from alita.helpers import import_string, check_serialize, method_dispatch
 from alita.response import TextResponse, JsonResponse
 from alita.exceptions import ServerError
 from collections import UserDict
@@ -207,18 +207,23 @@ class Alita(object):
             request, **route_match.path_params
         )
 
+    @method_dispatch
     async def make_response(self, response):
         if isinstance(response, self.response_class):
             pass
         elif isinstance(response, self.exception_class):
             return response.get_response()
-        elif isinstance(response, six.string_types):
-            return TextResponse(response)
-        elif check_serialize(response):
-            return JsonResponse(response)
         else:
             raise ServerError("Response Object Type invalid!")
         return response
+
+    @make_response.register(str)
+    async def _(self, text):
+        return TextResponse(text)
+
+    @make_response.register(dict)
+    async def _(self, json_value):
+        return JsonResponse(json_value)
 
     async def get_awaitable_result(self, func, *args, **kwargs):
         func_result = func(*args, **kwargs)

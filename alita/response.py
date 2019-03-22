@@ -9,7 +9,7 @@ try:
     from ujson import dumps as json_dumps
 except:
     from json import dumps
-    json_dumps = partial(dumps, separators=(",", ":"))
+    json_dumps = dumps
 
 
 class HTTPResponse(BaseResponse):
@@ -45,6 +45,8 @@ class JsonResponse(HTTPResponse):
     Returns response object with body in json format.
     """
     def __init__(self, body, status=200, headers=None, content_type="application/json"):
+        assert isinstance(body, dict)
+        body = json_dumps(body)
         super().__init__(body, status, headers, content_type)
 
 

@@ -4,7 +4,7 @@ import sys
 import json
 import pkgutil
 import importlib
-from collections import UserDict
+from functools import singledispatch, update_wrapper
 from urllib.parse import urlencode, parse_qs, urlsplit,\
     urlunsplit, unquote_to_bytes
 
@@ -374,3 +374,13 @@ def parse_options_header(value, multiple=False):
         value = rest
 
     return tuple(result) if result else ('', {})
+
+
+def method_dispatch(func):
+    dispatcher = singledispatch(func)
+
+    def wrapper(*args, **kw):
+        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
+    wrapper.register = dispatcher.register
+    update_wrapper(wrapper, func)
+    return wrapper
