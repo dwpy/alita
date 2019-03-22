@@ -87,12 +87,12 @@ class Request(BaseRequest, JSONMixin):
         if self.route_match and '.' in self.route_match.endpoint:
             return self.route_match.endpoint.rsplit('.', 1)[0]
 
-    def update_template_context(self, context):
+    async def update_template_context(self, context):
         funcs = self.app.template_context_processors[None]
         bp = self.blueprint
         if bp is not None and bp in self.app.template_context_processors:
             funcs = itertools.chain(funcs, self.app.template_context_processors[bp])
         orig_ctx = context.copy()
         for func in funcs:
-            context.update(func(self))
+            context.update(await func(self))
         context.update(orig_ctx)

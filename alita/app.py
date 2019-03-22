@@ -341,7 +341,8 @@ class Alita(object):
         options = dict(
             extensions=['jinja2.ext.autoescape', 'jinja2.ext.with_'],
             autoescape=select_jinja_autoescape,
-            auto_reload=self.templates_auto_reload()
+            auto_reload=self.templates_auto_reload(),
+            enable_async=True
         )
         rv = self.jinja_environment(self, **options)
         rv.globals.update(
@@ -368,9 +369,10 @@ class Alita(object):
     def add_template_global(self, f, name=None):
         self.jinja_env.globals[name or f.__name__] = f
 
-    def _default_template_ctx_processor(self, request):
-        return dict(request=request)
-
     def context_processor(self, f):
+        assert inspect.iscoroutinefunction(f)
         self.template_context_processors[None].append(f)
         return f
+
+    async def _default_template_ctx_processor(self, request):
+        return dict(request=request)

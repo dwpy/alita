@@ -63,16 +63,16 @@ class DispatchingJinjaLoader(BaseLoader):
         return list(result)
 
 
-def _render(request, context, template):
+async def _render(request, context, template):
     """Renders the template and fires the signal"""
-    request.update_template_context(context)
+    await request.update_template_context(context)
     before_render_template.send(request.app, template=template, context=context)
-    rv = template.render(context)
+    rv = await template.render_async(context)
     template_rendered.send(request.app, template=template, context=context)
     return rv
 
 
-def render_template(request, template_name_or_list, **context):
+async def render_template(request, template_name_or_list, **context):
     """
     Renders a template from the template folder with the given
     context.
@@ -84,12 +84,12 @@ def render_template(request, template_name_or_list, **context):
     :param context: the variables that should be available in the
                     context of the template.
     """
-    return HtmlResponse(_render(
+    return HtmlResponse(await _render(
         request, context,
         request.app.jinja_env.get_or_select_template(template_name_or_list)))
 
 
-def render_template_string(request, source, **context):
+async def render_template_string(request, source, **context):
     """
     Renders a template from the given template source string
     with the given context. Template variables will be autoescaped.
@@ -100,5 +100,5 @@ def render_template_string(request, source, **context):
     :param context: the variables that should be available in the
                     context of the template.
     """
-    return HtmlResponse(_render(
+    return HtmlResponse(await _render(
         request, context, request.app.jinja_env.from_string(source)))

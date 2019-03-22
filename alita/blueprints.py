@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import inspect
 from alita.base import BaseBlueprint
 
 
@@ -76,5 +77,6 @@ class Blueprint(BaseBlueprint):
         return f
 
     def context_processor(self, f):
+        assert inspect.iscoroutinefunction(f)
         self.record(lambda s: s.app.template_context_processors.setdefault(self.name, []).append(f))
         return f
