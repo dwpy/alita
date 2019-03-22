@@ -74,3 +74,7 @@ class Blueprint(BaseBlueprint):
     def response_middleware(self, f):
         self.record(lambda s: s.app.after_request_funcs.setdefault(self.name, []).append(f))
         return f
+
+    def context_processor(self, f):
+        self.record(lambda s: s.app.template_context_processors.setdefault(self.name, []).append(f))
+        return f

@@ -1,5 +1,4 @@
 import os
-import six
 import inspect
 import logging
 import warnings
@@ -10,16 +9,19 @@ from inspect import isawaitable
 from alita.datastructures import ImmutableDict
 from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
-from alita.helpers import import_string, check_serialize, method_dispatch
+from alita.helpers import import_string, cached_property, method_dispatch
 from alita.response import TextResponse, JsonResponse
 from alita.exceptions import ServerError
 from collections import UserDict
+from alita.templating import Environment
+from jinja2 import FileSystemLoader
 
 
 class Alita(object):
     config_class = Config
     _default_factory_class = AppFactory
     _view_middleware = []
+    jinja_environment = Environment
 
     app_factory_class = None
     response_class = None
@@ -64,22 +66,23 @@ class Alita(object):
         'JSON_SORT_KEYS': True,
         'JSONIFY_PRETTYPRINT_REGULAR': False,
         'JSONIFY_MIMETYPE': 'application/json',
-        'TEMPLATES_AUTO_RELOAD': None,
+        'TEMPLATES_AUTO_RELOAD': False,
         'MAX_COOKIE_SIZE': 4093,
         'SESSION_SAVE_EVERY_REQUEST': False,
         'SESSION_EXPIRE_AT_BROWSER_CLOSE': False,
         'SESSION_MUST_SAVE': True,
         'SESSION_TABLE_NAME': 'session',
         "SESSION_ENGINE": None,
-        'SESSION_ENGINE_CONFIG': None
+        'SESSION_ENGINE_CONFIG': None,
     })
 
     def __init__(self, name=None, subdomain_matching=False, static_folder=None,
-                 static_url_path=None):
+                 static_url_path=None, template_folder='templates'):
         self.name = name
         self.view_functions = {}
         self.static_folder = static_folder
         self.static_url_path = static_url_path
+        self.template_folder = template_folder
         self.subdomain_matching = subdomain_matching
         self.config = None
         self.is_running = False
@@ -89,9 +92,13 @@ class Alita(object):
         self.after_request_funcs = {}
         self.error_handler_spec = {}
         self.blueprints = {}
+        self._blueprint_order = []
         self.extensions = UserDict()
         self.logger = logging.getLogger(__name__)
 
+        self.template_context_processors = {
+            None: [self._default_template_ctx_processor]
+        }
         self.app_factory_class = import_string(self.config.get(
             "APP_FACTORY_CLASS", self._default_factory_class))
         self.app_factory = self.app_factory_class(self)
@@ -100,9 +107,15 @@ class Alita(object):
         self.router = None
         self.make_factory()
 
-    @property
-    def debug(self):
+    def _get_debug(self):
         return self.config['DEBUG']
+
+    def _set_debug(self, value):
+        self.config['DEBUG'] = value
+        self.jinja_env.auto_reload = self.templates_auto_reload()
+
+    debug = property(_get_debug, _set_debug)
+    del _get_debug, _set_debug
 
     def request_middleware(self, f):
         self.before_request_funcs.setdefault(None, []).append(f)
@@ -304,8 +317,60 @@ class Alita(object):
                                "not allow repeat register." % blueprint.name)
         else:
             self.blueprints[blueprint.name] = blueprint
+            self._blueprint_order.append(blueprint)
         blueprint.register(self, **options)
+
+    def iter_blueprints(self):
+        return iter(self._blueprint_order)
 
     def url_for(self, request, endpoint, **path_params):
         url_path = self.router.url_path_for(endpoint, **path_params)
         return url_path.make_url(request=request)
+
+    def templates_auto_reload(self):
+        r = self.config['TEMPLATES_AUTO_RELOAD']
+        return r if r is not None else self.debug
+
+    def create_jinja_environment(self):
+
+        def select_jinja_autoescape(filename):
+            if filename is None:
+                return True
+            return filename.endswith(('.html', '.htm', '.xml', '.xhtml'))
+
+        options = dict(
+            extensions=['jinja2.ext.autoescape', 'jinja2.ext.with_'],
+            autoescape=select_jinja_autoescape,
+            auto_reload=self.templates_auto_reload()
+        )
+        rv = self.jinja_environment(self, **options)
+        rv.globals.update(
+            url_for=self.url_for,
+            config=self.config,
+        )
+        return rv
+
+    @cached_property
+    def jinja_env(self):
+        return self.create_jinja_environment()
+
+    @cached_property
+    def jinja_loader(self):
+        if self.template_folder is not None:
+            return FileSystemLoader(self.template_folder)
+
+    def create_global_jinja_loader(self):
+        return self.app_factory.create_jinja_loader()
+
+    def add_template_filter(self, f, name=None):
+        self.jinja_env.filters[name or f.__name__] = f
+
+    def add_template_global(self, f, name=None):
+        self.jinja_env.globals[name or f.__name__] = f
+
+    def _default_template_ctx_processor(self, request):
+        return dict(request=request)
+
+    def context_processor(self, f):
+        self.template_context_processors[None].append(f)
+        return f

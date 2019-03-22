@@ -78,3 +78,7 @@ class AppFactory(BaseFactory):
     def create_static_handler(self):
         from alita.handler import StaticHandler
         return StaticHandler(self.app)
+
+    def create_jinja_loader(self):
+        from alita.templating import DispatchingJinjaLoader
+        return DispatchingJinjaLoader(self.app)

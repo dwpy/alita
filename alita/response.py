@@ -45,8 +45,8 @@ class JsonResponse(HTTPResponse):
     Returns response object with body in json format.
     """
     def __init__(self, body, status=200, headers=None, content_type="application/json"):
-        assert isinstance(body, dict)
-        body = json_dumps(body)
+        if isinstance(body, dict):
+            body = json_dumps(body)
         super().__init__(body, status, headers, content_type)
 
 

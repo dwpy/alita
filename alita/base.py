@@ -130,6 +130,14 @@ class BaseRequest(object):
         return self.environ.get("body")
 
     @cached_property
+    def data(self):
+        return self.get_data()
+
+    @cached_property
+    def form(self):
+        return self.get_data(parse_form_data=True)
+
+    @cached_property
     def url(self):
         """
         The reconstructed current URL as IRI.
@@ -177,7 +185,7 @@ class BaseRequest(object):
         """
         Just the request query string.
         """
-        return parse.parse_qs(parse.urlsplit(self.full_path).query)
+        return dict(parse.parse_qsl(parse.urlsplit(self.full_path).query))
 
     @cached_property
     def method(self):
@@ -207,7 +215,7 @@ class BaseRequest(object):
         """
         return self.environ.get("root_path")
 
-    def get_data(self, cache=True, as_text=False):
+    def get_data(self, cache=True, as_text=False, parse_form_data=False):
         rv = getattr(self, '_cached_data', None)
         if rv is None:
             rv = self.body
