@@ -23,4 +23,5 @@ async def hello(request):
 ## Links
 
 - Code: https://github.com/dwpy/alita
-- Docs: https://dwpy.github.io/alita
+- Docs-zh: https://dwpy.github.io/alita
+- Docs-en: https://dwpy.github.io/alita-docs-en
