@@ -1,7 +1,9 @@
 ## Alita
 
-Alita is a lightweight python async web application framework, It need Python3.5+ version at least。
-
+Alita is a lightweight python async web application framework.
+- Come into use the same with Flask.
+- Using the async/await syntax to write concurrent code.
+- Need Python3.5+ version at least.
 
 ## Installing
 ```
