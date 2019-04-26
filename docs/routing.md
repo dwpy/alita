@@ -25,5 +25,33 @@ def hello(request, name):
 注：如果写成<name>，则默认为str。
 
 ## route()函数参数
+- rule: 视图路由规则。
 - methods: 视图函数的请求方式，默认是'GET' 。
 - endpoint: 视图函数与路由规则的映射端点，用户可自定义该值，默认为视图函数名。
+- options: 可变参数，用户自定义函数参数，主要用于全局视图处理函数。
+
+## url_for函数
+App对象和蓝图对象都可以使用url_for函数，通过指定endpoint生成视图URL。
+
+在视图函数中使用:
+```
+@app.route('/')
+async def index(request):
+    url = app.url_for('index1')
+    return RedirectResponse(url)
+```
+
+在蓝图视图中使用:
+```
+br = Blueprint('demo')
+
+@br.route('/')
+async def index(request):
+    url = app.url_for('index1')
+    return RedirectResponse(url)
+```
+
+在模板中使用:
+```angular2html
+<h1><a href="{{url_for('index1')}}">test</a></h1>
+```

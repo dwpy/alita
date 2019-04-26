@@ -54,7 +54,7 @@ class RedirectResponse(HTTPResponse):
     """
     Returns response object with body in json format.
     """
-    def __init__(self, to, status=200, headers=None, content_type="text/html; charset=utf-8"):
+    def __init__(self, to, status=302, headers=None, content_type="text/html; charset=utf-8"):
         headers = headers or {}
         safe_to = quote_plus(to, safe=":/%#?&=@[]!$&'()*+,;")
         headers["Location"] = safe_to
@@ -158,3 +158,14 @@ class StreamResponse(StreamHTTPResponse):
                 await _file.close()
         self.stream_fn = _stream_fn
         return await super().output(version, keep_alive, keep_alive_timeout)
+
+
+__all__ = [
+    "RawResponse",
+    "HtmlResponse",
+    "TextResponse",
+    "JsonResponse",
+    "RedirectResponse",
+    "FileResponse",
+    "StreamResponse"
+]

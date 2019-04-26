@@ -343,9 +343,9 @@ class Alita(object):
     def iter_blueprints(self):
         return iter(self._blueprint_order)
 
-    def url_for(self, request, endpoint, **path_params):
+    def url_for(self, endpoint, **path_params):
         url_path = self.router.url_path_for(endpoint, **path_params)
-        return url_path.make_url(request=request)
+        return url_path.make_url()
 
     def templates_auto_reload(self):
         r = self.config['TEMPLATES_AUTO_RELOAD']

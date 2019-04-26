@@ -4,8 +4,8 @@ from enum import Enum
 from alita.base import BaseRoute, BaseRouter
 from alita.converters import CONVERTER_TYPES
 from urllib.parse import urljoin
-from alita.helpers import set_query_parameter, get_request_url
-from alita.exceptions import NotFound, BadRequest, InternalServerError
+from alita.helpers import set_query_parameter, get_request_url, set_query_parameter
+from alita.exceptions import NotFound, BadRequest
 
 
 class NoMatchFound(NotFound):
@@ -26,7 +26,7 @@ def replace_params(path, param_converters, path_params):
             path = path.replace("{" + key + "}", value)
             path_params.pop(key)
     for key, value in path_params.items():
-        set_query_parameter(path, key, value)
+        path = set_query_parameter(path, key, value)
     return path
 
 
@@ -66,7 +66,7 @@ class URLPath:
         self.params = params or {}
         assert protocol in ("http", "websocket")
 
-    def make_url(self, base_url=None, request=None):
+    def make_url(self, base_url='/', request=None):
         if request is not None:
             assert not base_url, 'Cannot set both "base_url" and "request".'
             return get_request_url(request)
@@ -119,13 +119,15 @@ class Route(BaseRoute):
         else:
             raise NoMatchFound()
 
-    def url_path_for(self, endpoint, **path_params) -> URLPath:
-        seen_params = set(path_params.keys())
-        expected_params = set(self.param_converters.keys())
-        if endpoint != self.endpoint or seen_params != expected_params:
+    def url_path_for(self, endpoint, **path_params):
+        seen_keys = set(path_params.keys())
+        expected_keys = set(self.param_converters.keys())
+        if endpoint != self.endpoint:
+            raise NoMatchFound()
+        if expected_keys and not seen_keys.issuperset(expected_keys):
             raise NoMatchFound()
         path = replace_params(self.path_format, self.param_converters, path_params)
-        return URLPath(path=path, protocol="http")
+        return URLPath(path=path, protocol="http", params=path_params)
 
     def __eq__(self, other):
         return (
@@ -161,10 +163,10 @@ class Router(BaseRouter):
                 pass
         raise NoMatchFound()
 
-    def url_path_for(self, name: str, **path_params: str) -> URLPath:
+    def url_path_for(self, endpoint, **path_params):
         for route in self.routes:
             try:
-                return route.url_path_for(name, **path_params)
+                return route.url_path_for(endpoint, **path_params)
             except NoMatchFound:
                 pass
         raise NoMatchFound()

@@ -8,7 +8,7 @@ class Blueprint(BaseBlueprint):
 
     def __init__(self, name, url_prefix=None):
         self.name = name
-        self.url_prefix = url_prefix
+        self.url_prefix = url_prefix or '/' + self.name
         self.deferred_functions = []
         self.app = None
 
@@ -41,6 +41,11 @@ class Blueprint(BaseBlueprint):
 
     def add_app_url_rule(self, rule, view_func, **options):
         endpoint = options.get('endpoint')
+        url_prefix = options.get('url_prefix')
+        if url_prefix is None:
+            options['url_prefix'] = self.url_prefix
+        elif not url_prefix.lstrip('/'):
+            raise RuntimeError("Register blueprint url prefix not support empty value.")
         if self.url_prefix is not None:
             if rule:
                 rule = '/'.join((
@@ -84,3 +89,6 @@ class Blueprint(BaseBlueprint):
     def view_handler(self, f):
         self.record(lambda s: s.app.view_functions_handlers.setdefault(self.name, []).append(f))
         return f
+
+    def url_for(self, endpoint, **path_params):
+        return self.app.url_for(endpoint, **path_params)
