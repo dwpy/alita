@@ -54,7 +54,7 @@ nosetests.xml
 *migrations*
 media
 static
-template
+templates
 venv
 debug/
 src/

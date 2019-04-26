@@ -1,5 +1,5 @@
 import os
-import inspect
+import asyncio
 import logging
 import warnings
 import itertools
@@ -80,6 +80,7 @@ class Alita(object):
                  static_url_path=None, template_folder='templates'):
         self.name = name
         self.view_functions = {}
+        self.view_functions_handlers = {}
         self.static_folder = static_folder
         self.static_url_path = static_url_path
         self.template_folder = template_folder
@@ -125,6 +126,10 @@ class Alita(object):
         self.after_request_funcs.setdefault(None, []).append(f)
         return f
 
+    def view_handler(self, f):
+        self.view_functions_handlers.setdefault(None, []).append(f)
+        return f
+
     def make_config(self):
         defaults = dict(self.default_config)
         self.config = self.config_class(defaults)
@@ -164,7 +169,7 @@ class Alita(object):
     def get_endpoint_from_view_func(view_func):
         return view_func.__name__
 
-    def add_url_rule(self, view_func, rule, endpoint=None, methods=None):
+    def add_url_rule(self, view_func, rule, endpoint=None, methods=None, **options):
         if endpoint is None:
             endpoint = self.get_endpoint_from_view_func(view_func)
         if methods is None:
@@ -173,14 +178,27 @@ class Alita(object):
             methods = [methods]
         assert isinstance(methods, (tuple, list))
         methods = set(item.upper() for item in methods)
+        view_func = self.process_view_functions(view_func, endpoint, **options)
+        self.check_view_functions(view_func, endpoint)
         self.router.add_route(rule, endpoint, view_func, methods)
+        self.view_functions[endpoint] = view_func
+
+    def check_view_functions(self, view_func, endpoint):
         old_func = self.view_functions.get(endpoint)
         if old_func is not None and old_func != view_func:
             raise AssertionError('View function mapping is overwriting an '
                                  'existing endpoint function: %s' % endpoint)
-        if not inspect.iscoroutinefunction(view_func):
+        if not asyncio.iscoroutinefunction(view_func):
             warnings.warn("View function [%s] should be async function" % view_func.__name__)
-        self.view_functions[endpoint] = view_func
+
+    def process_view_functions(self, view_func, endpoint=None, **options):
+        bp = endpoint.rsplit('.', 1)[0] if endpoint and '.' in endpoint else None
+        handlers = self.view_functions_handlers.get(None, [])
+        if bp is not None and bp in self.view_functions_handlers:
+            handlers = itertools.chain(handlers, self.view_functions_handlers[bp])
+        for handler in handlers:
+            view_func = handler(**options)(view_func)
+        return view_func
 
     def route(self, rule, **options):
         def decorator(f):
@@ -372,7 +390,7 @@ class Alita(object):
         self.jinja_env.globals[name or f.__name__] = f
 
     def context_processor(self, f):
-        assert inspect.iscoroutinefunction(f)
+        assert asyncio.iscoroutinefunction(f)
         self.template_context_processors[None].append(f)
         return f
 
