@@ -1,7 +1,9 @@
+import logging
 import asyncio
 import websockets
+from datetime import datetime
 from urllib.parse import unquote
-from alita.serve.utils import *
+from alita.serve.utils import get_local_addr, get_remote_addr, is_ssl
 
 
 class Server:
@@ -15,19 +17,19 @@ class Server:
 
 
 class WebSocketProtocol(websockets.WebSocketServerProtocol):
-    def __init__(self, config, server_state):
-        if not config.loaded:
-            config.load()
-
+    def __init__(self, app, config, server_state):
+        self.app = app
         self.config = config
-        self.app = config.loaded_app
-        self.loop = config.loop_instance
-        self.logger = config.logger_instance
+        self.server_state = server_state
+        self.loop = config.loop
+        self.logger = config.logger
         self.root_path = config.root_path
+        self.access_log = config.access_log and (self.logger.level <= logging.INFO)
 
         # Shared server state
         self.connections = server_state.connections
         self.tasks = server_state.tasks
+        self.default_headers = server_state.default_headers + config.default_headers
 
         # Connection state
         self.transport = None
@@ -36,7 +38,7 @@ class WebSocketProtocol(websockets.WebSocketServerProtocol):
         self.scheme = None
 
         # Connection events
-        self.scope = None
+        self.environ = None
         self.handshake_started_event = asyncio.Event()
         self.handshake_completed_event = asyncio.Event()
         self.closed_event = asyncio.Event()
@@ -84,27 +86,31 @@ class WebSocketProtocol(websockets.WebSocketServerProtocol):
         for header in headers.get_all("Sec-WebSocket-Protocol"):
             subprotocols.extend([token.strip() for token in header.split(",")])
 
-        asgi_headers = [
+        headers = [
             (name.encode("ascii"), value.encode("ascii"))
             for name, value in headers.raw_items()
         ]
 
-        self.scope = {
+        self.environ = {
             "type": "websocket",
             "scheme": self.scheme,
             "server": self.server,
             "client": self.client,
+            "method": "GET",
+            "host": self.server[0],
+            "port": int(self.server[1]),
             "root_path": self.root_path,
             "path": unquote(path_portion),
-            "query_string": query_string.encode("ascii"),
-            "headers": asgi_headers,
+            "query_string": query_string.encode(),
+            "headers": headers,
             "subprotocols": subprotocols,
+            "default_headers": self.default_headers,
+            "protocol": self,
+            "transport": self.transport,
         }
-        task = self.loop.create_task(self.run_asgi())
+        task = self.loop.create_task(self.run_ws())
         task.add_done_callback(self.on_task_complete)
         self.tasks.add(task)
-        await self.handshake_started_event.wait()
-        return self.initial_response
 
     def process_subprotocol(self, headers, available_subprotocols):
         """
@@ -134,17 +140,12 @@ class WebSocketProtocol(websockets.WebSocketServerProtocol):
         self.handshake_completed_event.set()
         await self.closed_event.wait()
 
-    async def run_asgi(self):
-        """
-        Wrapper around the ASGI callable, handling exceptions and unexpected
-        termination states.
-        """
+    async def run_ws(self):
         try:
-            asgi = self.app(self.scope)
-            result = await asgi(self.asgi_receive, self.asgi_send)
+            result = await self.app(self.environ, None)
         except BaseException as exc:
             self.closed_event.set()
-            msg = "Exception in ASGI application\n"
+            msg = "Exception in ws application\n"
             self.logger.error(msg, exc_info=exc)
             if not self.handshake_started_event.is_set():
                 self.send_500_response()
@@ -154,80 +155,32 @@ class WebSocketProtocol(websockets.WebSocketServerProtocol):
         else:
             self.closed_event.set()
             if not self.handshake_started_event.is_set():
-                msg = "ASGI callable returned without sending handshake."
+                msg = "Ws callable returned without sending handshake."
                 self.logger.error(msg)
                 self.send_500_response()
                 self.transport.close()
             elif result is not None:
-                msg = "ASGI callable should return None, but returned '%s'."
+                msg = "Ws callable should return None, but returned '%s'."
                 self.logger.error(msg, result)
                 await self.handshake_completed_event.wait()
                 self.transport.close()
 
-    async def asgi_send(self, message):
-        message_type = message["type"]
+    async def on_response(self, response):
+        # Callback for pipelined HTTP requests to be started.
+        self.server_state.total_requests += 1
+        response.set_protocol(self)
+        self.transport.write(b"%b" % response.body)
+        self.log_response(response)
 
-        if not self.handshake_started_event.is_set():
-            if message_type == "websocket.accept":
-                self.logger.info(
-                    '%s - "WebSocket %s" [accepted]',
-                    self.scope["client"],
-                    self.scope["root_path"] + self.scope["path"],
-                )
-                self.initial_response = None
-                self.accepted_subprotocol = message.get("subprotocol")
-                self.handshake_started_event.set()
+        if not self.transport.is_closing():
+            self.transport.close()
+            self.transport = None
 
-            elif message_type == "websocket.close":
-                self.logger.info(
-                    '%s - "WebSocket %s" 403',
-                    self.scope["client"],
-                    self.scope["root_path"] + self.scope["path"],
-                )
-                self.initial_response = (http.HTTPStatus.FORBIDDEN, [], b"")
-                self.handshake_started_event.set()
-                self.closed_event.set()
-
-            else:
-                msg = "Expected ASGI message 'websocket.accept' or 'websocket.close', but got '%s'."
-                raise RuntimeError(msg % message_type)
-
-        elif not self.closed_event.is_set():
-            await self.handshake_completed_event.wait()
-
-            if message_type == "websocket.send":
-                bytes_data = message.get("bytes")
-                text_data = message.get("text")
-                data = text_data if bytes_data is None else bytes_data
-                await self.send(data)
-
-            elif message_type == "websocket.close":
-                code = message.get("code", 1000)
-                await self.close(code)
-                self.closed_event.set()
-
-            else:
-                msg = "Expected ASGI message 'websocket.send' or 'websocket.close', but got '%s'."
-                raise RuntimeError(msg % message_type)
-
-        else:
-            msg = "Unexpected ASGI message '%s', after sending 'websocket.close'."
-            raise RuntimeError(msg % message_type)
-
-    async def asgi_receive(self):
-        if not self.connect_sent:
-            self.connect_sent = True
-            return {"type": "websocket.connect"}
-
-        await self.handshake_completed_event.wait()
-        try:
-            data = await self.recv()
-        except websockets.ConnectionClosed as exc:
-            return {"type": "websocket.disconnect", "code": exc.code}
-
-        is_text = isinstance(data, str)
-        return {
-            "type": "websocket.receive",
-            "text": data if is_text else None,
-            "bytes": None if is_text else data,
-        }
+    def log_response(self, response):
+        if self.access_log:
+            self.logger.info('[access] %s - - [%s] "%s %s" %s -',
+                             self.environ['host'],
+                             datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                             self.environ['method'],
+                             self.environ['path'],
+                             response.status)

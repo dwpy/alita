@@ -7,6 +7,7 @@ import functools
 from datetime import datetime
 from alita.serve.utils import *
 from urllib.parse import unquote
+from alita.serve.ws import WebSocketProtocol
 
 HIGH_WATER_LIMIT = 65536
 
@@ -79,12 +80,14 @@ class HttpProtocol(asyncio.Protocol):
         self.logger = config.logger
         self.access_log = config.access_log and (self.logger.level <= logging.INFO)
         self.parser = httptools.HttpRequestParser(self)
-        self.ws_protocol = config.ws_protocol
+        self.protocol = config.protocol
         self.root_path = config.root_path
         self.limit_concurrency = config.limit_concurrency
         self.keep_alive_timeout = config.keep_alive_timeout
 
         # Timeouts
+        self._request_timeout_handler = None
+        self._response_timeout_handler = None
         self.timeout_keep_alive_task = None
         self.timeout_keep_alive = config.timeout_keep_alive
 
@@ -122,16 +125,32 @@ class HttpProtocol(asyncio.Protocol):
         if self.logger.level <= logging.DEBUG:
             self.logger.debug("%s - Connected", self.client)
 
+        self._request_timeout_handler = self.loop.call_later(
+            self.config.request_timeout, self.request_timeout_callback
+        )
+
     def connection_lost(self, exc):
         self.connections.discard(self)
         if self.logger.level <= logging.DEBUG:
             self.logger.debug("%s - Disconnected", self.client)
         self.message_event.set()
 
+    def request_timeout_callback(self):
+        self.shutdown()
+
+    def response_timeout_callback(self):
+        self.shutdown()
+
     def cancel_timeout_keep_alive_task(self):
         if self.timeout_keep_alive_task is not None:
             self.timeout_keep_alive_task.cancel()
             self.timeout_keep_alive_task = None
+        if self._request_timeout_handler is not None:
+            self._request_timeout_handler.cancel()
+            self._request_timeout_handler = None
+        if self._response_timeout_handler is not None:
+            self._response_timeout_handler.cancel()
+            self._response_timeout_handler = None
 
     def data_received(self, data):
         self.cancel_timeout_keep_alive_task()
@@ -150,7 +169,7 @@ class HttpProtocol(asyncio.Protocol):
             if name == b"upgrade":
                 upgrade_value = value.lower()
 
-        if upgrade_value != b"websocket" or self.ws_protocol is None:
+        if upgrade_value != b"websocket" or self.protocol is None:
             msg = "Unsupported upgrade request."
             self.logger.warning(msg)
             content = [STATUS_TEXT[400]]
@@ -175,8 +194,10 @@ class HttpProtocol(asyncio.Protocol):
         for name, value in self.environ["headers"]:
             output += [name, b": ", value, b"\r\n"]
         output.append(b"\r\n")
-        protocol = self.ws_protocol(
-            config=self.config, server_state=self.server_state
+        protocol = self.protocol(
+            app=self.app,
+            config=self.config,
+            server_state=self.server_state
         )
         protocol.connection_made(self.transport)
         protocol.data_received(b"".join(output))
@@ -260,6 +281,9 @@ class HttpProtocol(asyncio.Protocol):
     def process_request(self):
         # Standard case - start processing the request.
         # Handle 503 responses when 'limit_concurrency' is exceeded.
+        self._response_timeout_handler = self.loop.call_later(
+            self.config.response_timeout, self.response_timeout_callback
+        )
         if self.limit_concurrency is not None and (
                 len(self.connections) >= self.limit_concurrency
                 or len(self.tasks) >= self.limit_concurrency
@@ -378,8 +402,11 @@ class Server(object):
             self.logger.warning("loop.add_signal_handler not implemented on this platform.")
 
     def run(self):
+        protocol = self.config.protocol
+        if protocol is None:
+            protocol = WebSocketProtocol if self.app.is_websocket else HttpProtocol
         server = functools.partial(
-            self.config.http_protocol,
+            protocol,
             app=self.app,
             config=self.config,
             server_state=self.server_state

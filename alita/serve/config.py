@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from alita.serve.server import HttpProtocol
-from alita.serve.ws import WebSocketProtocol
 
 
 def get_logger(log_level):
@@ -41,8 +40,7 @@ class ServerConfig:
         socket=None,
         connections=None,
         loop=None,
-        http_protocol=None,
-        ws=None,
+        protocol=None,
         log_level=logging.INFO,
         logger=None,
         uvloop=True,
@@ -56,6 +54,8 @@ class ServerConfig:
         limit_max_requests=None,
         timeout_keep_alive=5,
         timeout_notify=30,
+        request_timeout=60,
+        response_timeout=60,
         callback_notify=None,
         reuse_port=False,
         install_signal_handlers=True,
@@ -63,7 +63,12 @@ class ServerConfig:
         graceful_shutdown_timeout=10.0,
         keep_alive_timeout=5,
         default_headers=None,
-        run_async=False
+        run_async=False,
+        ws_timeout=10,
+        ws_max_size=None,
+        ws_max_queue=None,
+        ws_read_limit=2 ** 16,
+        ws_write_limit=2 ** 16,
     ):
         self.host = host
         self.port = port
@@ -86,14 +91,20 @@ class ServerConfig:
         self.limit_max_requests = limit_max_requests
         self.timeout_keep_alive = timeout_keep_alive
         self.timeout_notify = timeout_notify
+        self.request_timeout = request_timeout
+        self.response_timeout = response_timeout
         self.callback_notify = callback_notify
         self.reuse_port = reuse_port
         self.asyncio_server_kwargs = asyncio_server_kwargs
         self.graceful_shutdown_timeout = graceful_shutdown_timeout
-        self.http_protocol = http_protocol or self.DEFAULT_PROTOCOL
-        self.ws_protocol = ws or WebSocketProtocol
+        self.protocol = protocol or self.DEFAULT_PROTOCOL
         self.keep_alive_timeout = keep_alive_timeout
         self.default_headers = default_headers or []
+        self.ws_timeout = ws_timeout
+        self.ws_max_size = ws_max_size
+        self.ws_max_queue = ws_max_queue
+        self.ws_read_limit = ws_read_limit
+        self.ws_write_limit = ws_write_limit
 
 
 __all__ = [

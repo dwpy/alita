@@ -215,6 +215,13 @@ class BaseRequest(object):
         """
         return self.environ.get("root_path")
 
+    @cached_property
+    def transport(self):
+        """
+        Just the request transport string.
+        """
+        return self.environ.get("transport")
+
     def get_data(self, cache=True, as_text=False, parse_form_data=False):
         rv = getattr(self, '_cached_data', None)
         if rv is None:

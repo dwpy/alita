@@ -4,7 +4,7 @@ from enum import Enum
 from alita.base import BaseRoute, BaseRouter
 from alita.converters import CONVERTER_TYPES
 from urllib.parse import urljoin
-from alita.helpers import set_query_parameter, get_request_url, set_query_parameter
+from alita.helpers import get_request_url, set_query_parameter
 from alita.exceptions import NotFound, BadRequest
 
 
@@ -99,7 +99,7 @@ class Route(BaseRoute):
         self.path_regex, self.path_format, self.param_converters = compile_path(path)
 
     def match(self, request):
-        if request.scheme == "http":
+        if request.scheme in ("http", "https", "wss", "ws"):
             match = self.path_regex.match(request.path)
             if not match:
                 raise NoMatchFound()

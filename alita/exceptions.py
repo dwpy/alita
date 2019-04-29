@@ -609,3 +609,7 @@ class MiddlewareNotUsed(Exception):
     This middleware is not used in this server configuration
     """
     pass
+
+
+class WebSocketConnectionClosed(Exception):
+    pass

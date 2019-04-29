@@ -11,10 +11,12 @@ from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
 from alita.helpers import import_string, cached_property, method_dispatch
 from alita.response import TextResponse, JsonResponse
-from alita.exceptions import ServerError
+from alita.exceptions import ServerError, BadRequest, WebSocketConnectionClosed
+from alita.handler import IGNORE_EXCEPTIONS
 from collections import UserDict
 from alita.templating import Environment
 from jinja2 import FileSystemLoader
+from websockets import ConnectionClosed
 
 
 class Alita(object):
@@ -87,6 +89,7 @@ class Alita(object):
         self.subdomain_matching = subdomain_matching
         self.config = None
         self.is_running = False
+        self.is_websocket = False
         self.make_config()
 
         self.before_request_funcs = {}
@@ -107,6 +110,7 @@ class Alita(object):
         self.static_handler = None
         self.router = None
         self.make_factory()
+        self.websocket_tasks = set()
 
     def _get_debug(self):
         return self.config['DEBUG']
@@ -310,13 +314,19 @@ class Alita(object):
             request = await self.create_request(environ)
             response = await self.full_dispatch_request(request)
         except Exception as ex:
-            exception = await self.exception_handler.process_exception(request, ex)
-            if isinstance(exception, self.exception_class):
-                response = exception.get_response()
-            elif isinstance(exception, self.response_class):
-                response = exception
-            else:
+            try:
+                exception = await self.exception_handler.process_exception(request, ex)
+            except IGNORE_EXCEPTIONS:
                 response = None
+            else:
+                if isinstance(exception, self.exception_class):
+                    response = exception.get_response()
+                elif isinstance(exception, self.response_class):
+                    response = exception
+                else:
+                    response = None
+        if not on_response:
+            return response
         if response:
             await on_response(response)
         else:
@@ -396,3 +406,49 @@ class Alita(object):
 
     async def _default_template_ctx_processor(self, request):
         return dict(request=request)
+
+    def enable_websocket(self, enable=True):
+        if not enable:
+            for task in self.websocket_tasks:
+                task.cancel()
+        self.is_websocket = enable
+
+    def websocket(self, rule, endpoint=None, subprotocols=None):
+        """
+        Decorate a function to be registered as a websocket route
+        :param rule: path of the URL
+        :param endpoint: view function endpoint
+        :return: decorated function
+        """
+        self.enable_websocket()
+        if not rule.startswith("/"):
+            rule = "/" + rule
+
+        def response(handler):
+            async def websocket_handler(request, *args, **kwargs):
+                try:
+                    ws = request.transport.get_protocol()
+                except AttributeError:
+                    ws = request.transport._protocol
+                except:
+                    raise BadRequest("Invalid websocket request")
+                fut = asyncio.ensure_future(handler(request, ws, *args, **kwargs))
+                self.websocket_tasks.add(fut)
+                try:
+                    await fut
+                except (asyncio.CancelledError, ConnectionClosed) as ex:
+                    if self.config.get("WRITE_WS_CONNECTION_CLOSED_LOG", False):
+                        self.logger.exception(str(ex))
+                    raise WebSocketConnectionClosed
+                finally:
+                    self.websocket_tasks.remove(fut)
+                    ws.handshake_started_event.set()
+                await ws.close()
+
+            self.add_url_rule(
+                websocket_handler, rule,
+                methods=("GET", ),
+                endpoint=endpoint
+            )
+            return handler
+        return response

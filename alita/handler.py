@@ -4,8 +4,10 @@ import time
 import logging
 from alita.base import BaseExceptionHandler, BaseStaticHandler
 from alita.exceptions import default_exceptions, NotFound, BadRequest,\
-    InternalServerError
+    InternalServerError, WebSocketConnectionClosed
 from alita.response import FileResponse
+
+IGNORE_EXCEPTIONS = (WebSocketConnectionClosed, )
 
 
 class ExceptionHandler(BaseExceptionHandler):
@@ -58,6 +60,8 @@ class ExceptionHandler(BaseExceptionHandler):
     async def process_exception(self, request, exc):
         handler = None
         try:
+            if isinstance(exc, IGNORE_EXCEPTIONS):
+                raise exc
             if isinstance(exc, self.app.exception_class):
                 handler = self._status_handlers.get(exc.code)
             if handler is None:
@@ -65,6 +69,8 @@ class ExceptionHandler(BaseExceptionHandler):
             if handler is None:
                 handler = self.default_handler
             return await self.app.get_awaitable_result(handler, request, exc)
+        except IGNORE_EXCEPTIONS as ex:
+            raise ex
         except Exception as ex:
             return await self.process_exception(request, ex)
 
