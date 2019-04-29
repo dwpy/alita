@@ -349,16 +349,6 @@ class HttpProtocol(asyncio.Protocol):
     def push_data(self, data):
         self.transport.write(data)
 
-    def close_if_idle(self):
-        """Close the connection if a request is not being sent or received
-
-        :return: boolean - True if closed, false if staying open
-        """
-        if not self.parser:
-            self.transport.close()
-            return True
-        return False
-
     def close(self):
         """
         Force close the connection.
@@ -450,7 +440,7 @@ class Server(object):
 
             # Complete all tasks on the loop
             for connection in self.server_state.connections:
-                connection.close_if_idle()
+                connection.shutdown()
 
             # Gracefully shutdown timeout.
             # We should provide graceful_shutdown_timeout,

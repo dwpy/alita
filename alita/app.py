@@ -3,6 +3,7 @@ import asyncio
 import logging
 import warnings
 import itertools
+import functools
 import alita.signals as signals
 from alita.serve import *
 from inspect import isawaitable
@@ -425,6 +426,7 @@ class Alita(object):
             rule = "/" + rule
 
         def response(handler):
+            @functools.wraps(handler)
             async def websocket_handler(request, *args, **kwargs):
                 try:
                     ws = request.transport.get_protocol()
@@ -444,6 +446,7 @@ class Alita(object):
                     self.websocket_tasks.remove(fut)
                     ws.handshake_started_event.set()
                 await ws.close()
+                raise WebSocketConnectionClosed
 
             self.add_url_rule(
                 websocket_handler, rule,

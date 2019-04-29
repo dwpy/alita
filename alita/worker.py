@@ -71,7 +71,7 @@ class GunicornWorker(Worker):
 
             # prepare connections for closing
             for conn in self.connections:
-                conn.close_if_idle()
+                conn.shutdown()
 
             # gracefully shutdown timeout
             start_shutdown = 0
