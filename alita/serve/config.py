@@ -62,8 +62,8 @@ class ServerConfig:
         default_headers=None,
         run_async=False,
         ws_timeout=10,
-        ws_max_size=None,
-        ws_max_queue=None,
+        ws_max_size=2 ** 20,
+        ws_max_queue=2 ** 5,
         ws_read_limit=2 ** 16,
         ws_write_limit=2 ** 16,
     ):

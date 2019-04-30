@@ -447,7 +447,6 @@ class Alita(object):
                     raise WebSocketConnectionClosed
                 finally:
                     self.websocket_tasks.remove(fut)
-                    ws.handshake_started_event.set()
                 await ws.close()
                 raise WebSocketConnectionClosed
 

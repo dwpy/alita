@@ -313,7 +313,7 @@ class HttpProtocol(asyncio.Protocol):
             )
         self.transport.write(output_content)
         self.log_response(response)
-
+        self.cancel_timeout_keep_alive_task()
         if not self.transport.is_closing():
             self.transport.close()
             self.transport = None
