@@ -1,6 +1,5 @@
 import asyncio
 import logging
-from alita.serve.server import HttpProtocol
 
 
 def get_logger(log_level):
@@ -28,8 +27,6 @@ def init_loop(uvloop=True, create=True):
 
 
 class ServerConfig:
-    DEFAULT_PROTOCOL = HttpProtocol
-
     def __init__(
         self,
         host="127.0.0.1",
@@ -97,7 +94,7 @@ class ServerConfig:
         self.reuse_port = reuse_port
         self.asyncio_server_kwargs = asyncio_server_kwargs
         self.graceful_shutdown_timeout = graceful_shutdown_timeout
-        self.protocol = protocol or self.DEFAULT_PROTOCOL
+        self.protocol = protocol
         self.keep_alive_timeout = keep_alive_timeout
         self.default_headers = default_headers or []
         self.ws_timeout = ws_timeout

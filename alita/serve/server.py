@@ -4,10 +4,11 @@ import httptools
 import signal
 import asyncio
 import functools
+import traceback
 from datetime import datetime
 from alita.serve.utils import *
 from urllib.parse import unquote
-from alita.serve.ws import WebSocketProtocol
+from websockets import handshake, InvalidHandshake, WebSocketCommonProtocol
 
 HIGH_WATER_LIMIT = 65536
 
@@ -79,11 +80,11 @@ class HttpProtocol(asyncio.Protocol):
         self.loop = config.loop
         self.logger = config.logger
         self.access_log = config.access_log and (self.logger.level <= logging.INFO)
-        self.parser = httptools.HttpRequestParser(self)
         self.protocol = config.protocol
         self.root_path = config.root_path
         self.limit_concurrency = config.limit_concurrency
         self.keep_alive_timeout = config.keep_alive_timeout
+        self.debug = config.debug
 
         # Timeouts
         self._request_timeout_handler = None
@@ -102,6 +103,8 @@ class HttpProtocol(asyncio.Protocol):
         self.server = None
         self.client = None
         self.scheme = None
+        self.parser = None
+        self.websocket = None
         self.pipeline = []
 
         # Per-request state
@@ -155,13 +158,19 @@ class HttpProtocol(asyncio.Protocol):
     def data_received(self, data):
         self.cancel_timeout_keep_alive_task()
         try:
+            if self.parser is None:
+                self.headers = []
+                self.parser = httptools.HttpRequestParser(self)
             self.parser.feed_data(data)
         except httptools.parser.errors.HttpParserError as exc:
             msg = "Invalid HTTP request received."
-            self.logger.warning(msg)
-            self.transport.close()
+            if self.debug:
+                msg += "\n" + traceback.format_exc()
+            self.logger.error(msg)
+            self.on_response(msg)
         except httptools.HttpParserUpgrade as exc:
-            self.handle_upgrade()
+            #self.handle_upgrade()
+            pass
 
     def handle_upgrade(self):
         upgrade_value = None
@@ -205,7 +214,6 @@ class HttpProtocol(asyncio.Protocol):
 
     # Parser callbacks
     def on_url(self, url):
-        method = self.parser.get_method()
         parsed_url = httptools.parse_url(url)
         path = parsed_url.path.decode("ascii")
         if "%" in path:
@@ -222,12 +230,8 @@ class HttpProtocol(asyncio.Protocol):
             "scheme": self.scheme,
             "host": self.server[0],
             "port": int(self.server[1]),
-            "method": method.decode("ascii"),
-            "root_path": self.root_path,
             "path": path,
             "query_string": (parsed_url.query if parsed_url.query else b"").decode(),
-            "headers": self.headers,
-            "default_headers": self.default_headers,
         }
 
     def on_header(self, name: bytes, value: bytes):
@@ -240,29 +244,27 @@ class HttpProtocol(asyncio.Protocol):
         http_version = self.parser.get_http_version()
         if http_version != self.DEFAULT_VERSION:
             self.environ["http_version"] = http_version
-        if self.parser.should_upgrade():
-            return
         self.environ.update(
             protocol=self,
+            method=self.parser.get_method().decode("ascii"),
             transport=self.transport,
             logger=self.logger,
+            root_path=self.root_path,
             access_log=self.access_log,
             expect_100_continue=self.expect_100_continue,
             keep_alive=http_version != "1.0",
-            keep_alive_timeout=self.keep_alive_timeout
+            keep_alive_timeout=self.keep_alive_timeout,
+            headers=self.headers,
+            default_headers=self.default_headers,
         )
     
     def on_body(self, body: bytes):
-        if self.parser.should_upgrade():
-            return
         self.body += body
         if len(self.body) > HIGH_WATER_LIMIT:
             self.transport.pause_reading()
         self.message_event.set()
 
     def on_message_complete(self):
-        if self.parser.should_upgrade():
-            return
         self.more_body = False
         self.message_event.set()
         self.cancel_timeout_keep_alive_task()
@@ -300,12 +302,15 @@ class HttpProtocol(asyncio.Protocol):
     async def on_response(self, response):
         # Callback for pipelined HTTP requests to be started.
         self.server_state.total_requests += 1
-        response.set_protocol(self)
-        output_content = await response.output(
-            self.environ["http_version"],
-            self.environ["keep_alive"],
-            self.environ["keep_alive_timeout"]
-        )
+        if isinstance(response, str):
+            output_content = response
+        else:
+            response.set_protocol(self)
+            output_content = await response.output(
+                self.environ["http_version"],
+                self.environ["keep_alive"],
+                self.environ["keep_alive_timeout"]
+            )
         self.transport.write(output_content)
         self.log_response(response)
 
@@ -356,6 +361,87 @@ class HttpProtocol(asyncio.Protocol):
         if self.transport is not None:
             self.transport.close()
             self.transport = None
+
+
+class WebSocketProtocol(HttpProtocol):
+    def request_timeout_callback(self):
+        if self.websocket is None:
+            super().request_timeout_callback()
+
+    def response_timeout_callback(self):
+        if self.websocket is None:
+            super().response_timeout_callback()
+
+    def timeout_keep_alive_handler(self):
+        if self.websocket is None:
+            super().timeout_keep_alive_handler()
+
+    def connection_lost(self, exc):
+        if self.websocket is not None:
+            self.websocket.connection_lost(exc)
+        super().connection_lost(exc)
+
+    def data_received(self, data):
+        if self.websocket is not None:
+            self.websocket.data_received(data)
+        else:
+            try:
+                super().data_received(data)
+            except httptools.HttpParserUpgrade:
+                pass
+
+    def write_response(self, response):
+        if self.websocket is not None:
+            self.transport.close()
+        else:
+            super().on_response(response)
+
+    async def websocket_handshake(self, request, subprotocols=None):
+        headers = {}
+
+        try:
+            key = handshake.check_request(request.headers)
+            handshake.build_response(headers, key)
+        except InvalidHandshake:
+            msg = "Invalid websocket request received."
+            if self.debug:
+                msg += "\n" + traceback.format_exc()
+            self.logger.error(msg)
+            self.on_response(msg)
+            raise RuntimeError(msg)
+
+        subprotocol = None
+        if subprotocols and "Sec-Websocket-Protocol" in request.headers:
+            # select a subprotocol
+            client_subprotocols = [
+                p.strip()
+                for p in request.headers["Sec-Websocket-Protocol"].split(",")
+            ]
+            for p in client_subprotocols:
+                if p in subprotocols:
+                    subprotocol = p
+                    headers["Sec-Websocket-Protocol"] = subprotocol
+                    break
+
+        # write the 101 response back to the client
+        rv = b"HTTP/1.1 101 Switching Protocols\r\n"
+        for k, v in headers.items():
+            rv += k.encode("utf-8") + b": " + v.encode("utf-8") + b"\r\n"
+        rv += b"\r\n"
+        request.transport.write(rv)
+
+        # hook up the websocket protocol
+        self.websocket = WebSocketCommonProtocol(
+            timeout=self.config.ws_timeout,
+            max_size=self.config.ws_max_size,
+            max_queue=self.config.ws_max_queue,
+            read_limit=self.config.ws_read_limit,
+            write_limit=self.config.ws_write_limit,
+        )
+        self.websocket.subprotocol = subprotocol
+        self.websocket.connection_made(request.transport)
+        self.websocket.connection_open()
+        return self.websocket
 
 
 class ServerState:

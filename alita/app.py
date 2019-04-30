@@ -429,11 +429,10 @@ class Alita(object):
             @functools.wraps(handler)
             async def websocket_handler(request, *args, **kwargs):
                 try:
-                    ws = request.transport.get_protocol()
+                    protocol = request.transport.get_protocol()
                 except AttributeError:
-                    ws = request.transport._protocol
-                except:
-                    raise BadRequest("Invalid websocket request")
+                    protocol = request.transport._protocol
+                ws = await protocol.websocket_handshake(request, subprotocols)
                 fut = asyncio.ensure_future(handler(request, ws, *args, **kwargs))
                 self.websocket_tasks.add(fut)
                 try:
