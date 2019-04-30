@@ -1,7 +1,9 @@
 import json
 import itertools
 from alita.base import BaseRequest
-from alita.exceptions import BadRequest, RequestEntityTooLarge
+from alita.helpers import cached_property
+from alita.datastructures import MultiDict
+from alita.exceptions import BadRequest, BadRequestKeyError, RequestEntityTooLarge
 
 
 class JSONMixin(object):
@@ -63,6 +65,13 @@ class Request(BaseRequest, JSONMixin):
     def __init__(self, app, environ, headers=None):
         super().__init__(app, environ, headers)
         self.match_request()
+
+    @cached_property
+    def args(self):
+        """
+        Just the request query string.
+        """
+        return MultiDict(super().args, key_error_exception=BadRequestKeyError)
 
     def match_request(self):
         try:

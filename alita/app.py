@@ -263,6 +263,10 @@ class Alita(object):
     async def _(self, json_value):
         return JsonResponse(json_value)
 
+    @make_response.register(list)
+    async def _(self, json_value):
+        return JsonResponse(json_value)
+
     async def get_awaitable_result(self, func, *args, **kwargs):
         func_result = func(*args, **kwargs)
         if isawaitable(func_result):
