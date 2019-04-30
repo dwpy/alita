@@ -334,11 +334,11 @@ class Alita(object):
             return response
         if response:
             await on_response(response)
-        else:
+        elif not self.is_websocket:
             message = "Caught handled exception, response object empty."
             self.logger.error(message)
-            await on_response(self.exception_handler.ruder_error_response(
-                request, RuntimeError(message)))
+            await on_response(self.exception_handler.process_exception(
+                request, ServerError(message)).get_response())
 
     def log_exception(self, request, exc_info):
         self.logger.error('Exception on %s [%s]' % (
