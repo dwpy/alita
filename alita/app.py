@@ -164,7 +164,7 @@ class Alita(object):
     def register_error_handler(self, code_or_exception, func):
         if isinstance(code_or_exception, int):
             self.exception_handler.add_status_handler(code_or_exception, func)
-        elif isinstance(code_or_exception, Exception):
+        elif issubclass(code_or_exception, Exception):
             self.exception_handler.add_exception_handler(code_or_exception, func)
         else:
             raise ValueError("decorator error handler code or exception "
@@ -308,7 +308,14 @@ class Alita(object):
             return await self.finalize_response(response)
         except Exception as ex:
             exception = await self.exception_handler.process_exception(request, ex)
-            raise exception
+            if issubclass(type(exception), BaseException):
+                raise exception
+            elif isinstance(exception, self.response_class):
+                return exception
+            else:
+                message = "Caught handled exception: %s." % str(exception)
+                self.logger.error(message)
+                raise ServerError(message)
 
     async def create_request(self, environ):
         return self.app_factory.create_request_object(environ)
