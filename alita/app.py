@@ -310,9 +310,9 @@ class Alita(object):
             exception = await self.exception_handler.process_exception(request, ex)
             if issubclass(type(exception), BaseException):
                 raise exception
-            elif isinstance(exception, self.response_class):
-                return exception
-            else:
+            try:
+                return await self.make_response(exception)
+            except ServerError:
                 message = "Caught handled exception: %s." % str(exception)
                 self.logger.error(message)
                 raise ServerError(message)
