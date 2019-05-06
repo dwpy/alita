@@ -77,9 +77,9 @@ class Alita(object):
         'SESSION_TABLE_NAME': 'session',
         "SESSION_ENGINE": None,
         'SESSION_ENGINE_CONFIG': None,
-        'FORWARDED_FOR_HEADER': 'X-Forwarded-For',
-        'HTTP_HOST': 'HTTP_HOST',
-        'REAL_IP_HEADER': 'X-Real-IP',
+        'FORWARDED_FOR_HEADER': 'x-forwarded-for',
+        'HTTP_HOST': 'http_host',
+        'REAL_IP_HEADER': 'x-real-ip',
         'REMOTE_ADDR': 'remote_addr'
     })
 
