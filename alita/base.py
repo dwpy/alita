@@ -93,8 +93,10 @@ class BaseRequest(object):
             rv = self.headers[self.app.config['FORWARDED_FOR_HEADER']].split(',', 1)[0].strip()
         elif self.headers.get(self.app.config['HTTP_HOST']):
             rv = self.headers[self.app.config['HTTP_HOST']]
+        elif self.headers.get('Host'):
+            rv = self.headers['Host'].split(':', 1)[0].strip()
         else:
-            rv = self.environ.get['host']
+            rv = self.environ.get('host')
         return rv
 
     @cached_property
