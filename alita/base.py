@@ -209,6 +209,13 @@ class BaseRequest(object):
         return self.environ.get("server")
 
     @cached_property
+    def client(self):
+        """
+        Just the request client string.
+        """
+        return self.environ.get("client")
+
+    @cached_property
     def root_path(self):
         """
         Just the request root_path string.
