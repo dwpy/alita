@@ -44,7 +44,7 @@ setup(
         'websockets',
         'gunicorn',
         'aiofiles',
-        'jinja2'
+        'jinja2>=2.10.1'
     ],
     extras_require={
         'dotenv': ['python-dotenv'],

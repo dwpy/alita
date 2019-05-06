@@ -9,3 +9,4 @@ httptools
 websockets
 gunicorn
 aiofiles
+jinja2>=2.10.1
