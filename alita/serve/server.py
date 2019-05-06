@@ -228,7 +228,7 @@ class HttpProtocol(asyncio.Protocol):
             "server": self.server,
             "client": self.client,
             "scheme": self.scheme,
-            "host": self.server[0],
+            "ip": self.server[0],
             "port": int(self.server[1]),
             "path": path,
             "query_string": (parsed_url.query if parsed_url.query else b"").decode(),

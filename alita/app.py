@@ -77,6 +77,10 @@ class Alita(object):
         'SESSION_TABLE_NAME': 'session',
         "SESSION_ENGINE": None,
         'SESSION_ENGINE_CONFIG': None,
+        'FORWARDED_FOR_HEADER': 'X-Forwarded-For',
+        'HTTP_HOST': 'HTTP_HOST',
+        'REAL_IP_HEADER': 'X-Real-IP',
+        'REMOTE_ADDR': 'remote_addr'
     })
 
     def __init__(self, name=None, subdomain_matching=False, static_folder=None,

@@ -88,6 +88,15 @@ class BaseRequest(object):
             self._cookies = cookies
         return self._cookies
 
+    def get_host(self):
+        if self.headers.get(self.app.config['FORWARDED_FOR_HEADER']):
+            rv = self.headers[self.app.config['FORWARDED_FOR_HEADER']].split(',', 1)[0].strip()
+        elif self.headers.get(self.app.config['HTTP_HOST']):
+            rv = self.headers[self.app.config['HTTP_HOST']]
+        else:
+            rv = self.environ.get['host']
+        return rv
+
     @cached_property
     def version(self):
         """
@@ -160,11 +169,18 @@ class BaseRequest(object):
         return get_request_url(self, root_only=True)
 
     @cached_property
+    def ip(self):
+        """
+        Just the host including the ip if available.
+        """
+        return self.environ.get("ip")
+
+    @cached_property
     def host(self):
         """
-        Just the host including the port if available.
+        Just the host including the host if available.
         """
-        return self.environ.get("host")
+        return self.get_host()
 
     @cached_property
     def port(self):
@@ -214,6 +230,12 @@ class BaseRequest(object):
         Just the request client string.
         """
         return self.environ.get("client")
+
+    @cached_property
+    def remote_addr(self):
+        return self.headers.get(self.app.config['REAL_IP_HEADER']) \
+               or self.headers.get(self.app.config['FORWARDED_FOR_HEADER']) \
+               or self.headers.get(self.app.config['REMOTE_ADDR'])
 
     @cached_property
     def root_path(self):
