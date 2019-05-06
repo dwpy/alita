@@ -235,8 +235,8 @@ class HttpProtocol(asyncio.Protocol):
         }
 
     def on_header(self, name: bytes, value: bytes):
-        name = name.lower()
-        if name == b"expect" and value.lower() == b"100-continue":
+        name = name
+        if name.lower() == b"expect" and value.lower() == b"100-continue":
             self.expect_100_continue = True
         self.headers.append((name, value))
 

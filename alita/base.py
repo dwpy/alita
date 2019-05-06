@@ -58,6 +58,10 @@ class BaseRequest(object):
         self.response_complete = False
         self.match_headers()
 
+    @property
+    def META(self):
+        return dict(self.headers, **self.environ)
+
     def match_headers(self):
         for value in self.environ["headers"]:
             self.headers[value[0].decode()] = value[1].decode()
