@@ -143,14 +143,14 @@ class Alita(object):
         defaults = dict(self.default_config)
         self.config = self.config_class(defaults)
 
-    def config_from_py(self, filename, silent=False):
+    def config_from_pyfile(self, filename, silent=False):
         self.config.from_pyfile(filename, silent)
 
-    def config_from_json(self, filename, silent=False):
+    def config_from_jsonfile(self, filename, silent=False):
         self.config.from_json(filename, silent)
 
-    def config_from_object(self, filename, silent=False):
-        self.config.from_object(filename, silent)
+    def config_from_object(self, filename):
+        self.config.from_object(filename)
 
     def make_factory(self):
         self.response_class = self.app_factory.create_base_response_class()
