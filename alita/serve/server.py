@@ -274,7 +274,7 @@ class HttpProtocol(asyncio.Protocol):
     def log_response(self, response):
         if self.access_log:
             self.logger.info('[access] %s - - [%s] "%s %s" %s -',
-                             self.environ['host'],
+                             self.environ['ip'],
                              datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                              self.environ['method'],
                              self.environ['path'],

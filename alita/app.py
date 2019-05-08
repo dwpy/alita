@@ -4,6 +4,7 @@ import logging
 import warnings
 import itertools
 import functools
+import traceback
 import alita.signals as signals
 from alita.serve import *
 from inspect import isawaitable
@@ -352,10 +353,14 @@ class Alita(object):
                 request, ServerError(message)).get_response())
 
     def log_exception(self, request, exc_info):
-        self.logger.error('Exception on %s [%s]' % (
-            request.path,
-            request.method
-        ), exc_info=exc_info)
+        try:
+            self.logger.exception(traceback.format_exc())
+            self.logger.error('Exception on %s [%s]' % (
+                request.path,
+                request.method
+            ), exc_info=exc_info)
+        except:
+            pass
 
     def register_blueprint(self, blueprint, **options):
         if blueprint.name in self.blueprints:

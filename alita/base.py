@@ -64,7 +64,7 @@ class BaseRequest(object):
 
     def match_headers(self):
         for value in self.environ["headers"]:
-            self.headers[value[0].decode()] = value[1].decode()
+            self.headers[value[0]] = value[1]
 
     @property
     def content_type(self):
