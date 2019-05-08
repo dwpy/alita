@@ -238,7 +238,7 @@ class HttpProtocol(asyncio.Protocol):
         name = name.lower()
         if name == b"expect" and value.lower() == b"100-continue":
             self.expect_100_continue = True
-        self.headers.append((name, value))
+        self.headers.append((name.decode("ascii"), value.decode("ascii")))
 
     def on_headers_complete(self):
         http_version = self.parser.get_http_version()
