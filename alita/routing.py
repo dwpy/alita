@@ -153,13 +153,15 @@ class Router(BaseRouter):
         self.app = app
         self.routes = routes or []
 
-    def add_route(self, path, endpoint, view_func, methods=None):
+    def add_route(self, path, endpoint, view_func, methods=None, strict_slashes=None):
+        if strict_slashes is None:
+            strict_slashes = self.app.config.get('STRICT_SLASHES', True)
         route = Route(
             path,
             endpoint=endpoint,
             view_func=view_func,
             methods=methods,
-            strict_slashes=self.app.config.get('STRICT_SLASHES', True)
+            strict_slashes=strict_slashes
         )
         self.routes.append(route)
 
