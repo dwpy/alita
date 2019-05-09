@@ -92,3 +92,12 @@ class Blueprint(BaseBlueprint):
 
     def url_for(self, endpoint, **path_params):
         return self.app.url_for(endpoint, **path_params)
+
+    def add_websocket_handler(self, rule, handler, **options):
+        self.record(lambda s: s.app.add_websocket_handler(rule, handler, **options))
+
+    def websocket(self, rule, **options):
+        def decorator(f):
+            self.add_websocket_handler(rule, f, **options)
+            return f
+        return decorator

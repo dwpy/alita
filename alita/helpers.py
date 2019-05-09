@@ -307,9 +307,9 @@ def set_query_parameter(url, param_name, param_value):
     return urlunsplit((scheme, netloc, path, new_query_string, fragment))
 
 
-def get_request_url(request, root_only=False, strip_querystring=False):
+def get_request_url(request, path=None, root_only=False, strip_querystring=False):
     scheme = request.scheme
-    path = request.root_path + request.path
+    path = request.root_path + (path or request.path)
     query_string = request.query_string
     host_header = None
     if root_only:

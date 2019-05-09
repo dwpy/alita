@@ -48,6 +48,19 @@ class HTTPException(BaseHTTPException):
         )
 
 
+class RequestRedirect(HTTPException):
+
+    """Raise if the map requests a redirect. This is for example the case if
+    `strict_slashes` are activated and an url that requires a trailing slash.
+
+    The attribute `new_url` contains the absolute destination url.
+    """
+    code = 302
+    description = (
+        'The browser (or proxy) sent a request that need redirect.'
+    )
+
+
 class BadRequest(HTTPException):
 
     """
@@ -613,3 +626,17 @@ class MiddlewareNotUsed(Exception):
 
 class WebSocketConnectionClosed(Exception):
     pass
+
+
+class RoutingException(Exception):
+
+    """Special exceptions that require the application to redirect, notifying
+    about missing urls, etc.
+
+    :internal:
+    """
+
+
+class RequestSlash(RoutingException):
+
+    """Internal exception."""

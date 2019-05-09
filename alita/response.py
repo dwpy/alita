@@ -1,6 +1,5 @@
 import os
 import mimetypes
-from functools import partial
 from urllib.parse import quote_plus
 from alita.base import BaseResponse
 from aiofiles import open as open_async

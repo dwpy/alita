@@ -3,9 +3,10 @@ import attr
 from enum import Enum
 from alita.base import BaseRoute, BaseRouter
 from alita.converters import CONVERTER_TYPES
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote
 from alita.helpers import get_request_url, set_query_parameter
-from alita.exceptions import NotFound, BadRequest
+from alita.exceptions import NotFound, BadRequest, RequestSlash, RequestRedirect
+from alita.response import RedirectResponse
 
 
 class NoMatchFound(NotFound):
@@ -32,30 +33,6 @@ def replace_params(path, param_converters, path_params):
 
 # Match parameters in URL paths, eg. '<param_name:int/float/str/path>'
 PARAM_REGEX = re.compile("<([a-zA-Z_][a-zA-Z0-9_]*)(:[a-zA-Z_][a-zA-Z0-9_]*)?>")
-
-
-def compile_path(path):
-    path_regex = "^"
-    path_format = ""
-
-    idx = 0
-    param_converters = {}
-    for match in PARAM_REGEX.finditer(path):
-        param_name, converter_type = match.groups("str")
-        converter_type = converter_type.lstrip(":")
-        if converter_type not in CONVERTER_TYPES:
-            raise RuntimeError(f"Unknown path converter '{converter_type}'")
-        converter = CONVERTER_TYPES[converter_type]
-        path_regex += path[idx: match.start()]
-        path_regex += f"(?P<{param_name}>{converter.regex})"
-        path_format += path[idx: match.start()]
-        path_format += "{%s}" % param_name
-        param_converters[param_name] = converter
-        idx = match.end()
-
-    path_regex += path[idx:] + "$"
-    path_format += path[idx:]
-    return re.compile(path_regex), path_format, param_converters
 
 
 class URLPath:
@@ -86,24 +63,57 @@ class RouteMatch:
 
 
 class Route(BaseRoute):
-    def __init__(self, path, endpoint, view_func, methods=None):
+    def __init__(self, path, endpoint, view_func, methods=None, strict_slashes=None):
         assert path.startswith("/"), "Routed paths must start with '/'"
         self.path = path
         self.endpoint = endpoint
         self.view_func = view_func
+        self.strict_slashes = strict_slashes
+        self.is_leaf = not self.path.endswith('/')
         methods = methods or getattr(view_func, 'methods', None) or ('GET',)
         self.methods = set([method.upper() for method in methods])
         if "GET" in self.methods:
             self.methods |= set(["HEAD"])
+        self.rule = self.is_leaf and self.path or self.path.rstrip('/')
+        self.path_regex, self.path_format, self.param_converters = self.compile_path()
 
-        self.path_regex, self.path_format, self.param_converters = compile_path(path)
+    def compile_path(self):
+        path_regex = ""
+        path_format = ""
+
+        idx = 0
+        param_converters = {}
+        for match in PARAM_REGEX.finditer(self.rule):
+            param_name, converter_type = match.groups("str")
+            converter_type = converter_type.lstrip(":")
+            if converter_type not in CONVERTER_TYPES:
+                raise RuntimeError(f"Unknown path converter '{converter_type}'")
+            converter = CONVERTER_TYPES[converter_type]
+            path_regex += self.rule[idx: match.start()]
+            path_regex += f"(?P<{param_name}>{converter.regex})"
+            path_format += self.rule[idx: match.start()]
+            path_format += "{%s}" % param_name
+            param_converters[param_name] = converter
+            idx = match.end()
+
+        path_regex += self.rule[idx:]
+        path_format += self.rule[idx:]
+        regex = r'^%s%s$' % (
+            path_regex,
+            (not self.is_leaf or not self.strict_slashes) and
+            '(?<!/)(?P<__suffix__>/?)' or ''
+        )
+        return re.compile(regex), path_format, param_converters
 
     def match(self, request):
         if request.scheme in ("http", "https", "wss", "ws"):
-            match = self.path_regex.match(request.path)
+            match = self.path_regex.search(request.path)
             if not match:
                 raise NoMatchFound()
             matched_params = match.groupdict()
+            if self.strict_slashes and not self.is_leaf and \
+                    not matched_params.pop('__suffix__'):
+                raise RequestSlash()
             for key, value in matched_params.items():
                 matched_params[key] = self.param_converters[key].convert(value)
             if self.methods and request.method not in self.methods:
@@ -149,6 +159,7 @@ class Router(BaseRouter):
             endpoint=endpoint,
             view_func=view_func,
             methods=methods,
+            strict_slashes=self.app.config.get('STRICT_SLASHES', True)
         )
         self.routes.append(route)
 
@@ -161,6 +172,10 @@ class Router(BaseRouter):
                 return route_math
             except NoMatchFound:
                 pass
+            except RequestSlash:
+                new_path = quote(request.path, safe='/:|+') + '/'
+                raise RequestRedirect(response=RedirectResponse(
+                    get_request_url(request, path=new_path)))
         raise NoMatchFound()
 
     def url_path_for(self, endpoint, **path_params):

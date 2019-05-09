@@ -22,6 +22,7 @@ from websockets import ConnectionClosed
 
 
 class Alita(object):
+    __charset__ = 'utf-8'
     config_class = Config
     _default_factory_class = AppFactory
     _view_middleware = []
@@ -81,7 +82,8 @@ class Alita(object):
         'FORWARDED_FOR_HEADER': 'x-forwarded-for',
         'HTTP_HOST': 'http_host',
         'REAL_IP_HEADER': 'x-real-ip',
-        'REMOTE_ADDR': 'remote_addr'
+        'REMOTE_ADDR': 'remote_addr',
+        'STRICT_SLASHES': True
     })
 
     def __init__(self, name=None, subdomain_matching=False, static_folder=None,
@@ -434,42 +436,52 @@ class Alita(object):
                 task.cancel()
         self.is_websocket = enable
 
-    def websocket(self, rule, endpoint=None, subprotocols=None):
+    def add_websocket_handler(self, rule, handler, endpoint=None, subprotocols=None):
         """
-        Decorate a function to be registered as a websocket route
+        add a function to be registered as a websocket route
         :param rule: path of the URL
+        :param handler: websocker handler view
         :param endpoint: view function endpoint
+        :param subprotocols: websocket subprotocols
         :return: decorated function
         """
         self.enable_websocket()
         if not rule.startswith("/"):
             rule = "/" + rule
 
-        def response(handler):
-            @functools.wraps(handler)
-            async def websocket_handler(request, *args, **kwargs):
-                try:
-                    protocol = request.transport.get_protocol()
-                except AttributeError:
-                    protocol = request.transport._protocol
-                ws = await protocol.websocket_handshake(request, subprotocols)
-                fut = asyncio.ensure_future(handler(request, ws, *args, **kwargs))
-                self.websocket_tasks.add(fut)
-                try:
-                    await fut
-                except (asyncio.CancelledError, ConnectionClosed) as ex:
-                    if self.config.get("WRITE_WS_CONNECTION_CLOSED_LOG", False):
-                        self.logger.exception(str(ex))
-                    raise WebSocketConnectionClosed
-                finally:
-                    self.websocket_tasks.remove(fut)
-                await ws.close()
+        async def websocket_handler(request, *args, **kwargs):
+            try:
+                protocol = request.transport.get_protocol()
+            except AttributeError:
+                protocol = request.transport._protocol
+            ws = await protocol.websocket_handshake(request, subprotocols)
+            fut = asyncio.ensure_future(handler(request, ws, *args, **kwargs))
+            self.websocket_tasks.add(fut)
+            try:
+                await fut
+            except (asyncio.CancelledError, ConnectionClosed) as ex:
+                if self.config.get("WRITE_WS_CONNECTION_CLOSED_LOG", False):
+                    self.logger.exception(str(ex))
                 raise WebSocketConnectionClosed
+            finally:
+                self.websocket_tasks.remove(fut)
+            await ws.close()
+            raise WebSocketConnectionClosed
 
-            self.add_url_rule(
-                websocket_handler, rule,
-                methods=("GET", ),
-                endpoint=endpoint
-            )
-            return handler
-        return response
+        self.add_url_rule(
+            websocket_handler, rule,
+            methods=("GET", ),
+            endpoint=endpoint
+        )
+
+    def websocket(self, rule, **options):
+        """
+        Decorate a function to be registered as a websocket route
+        :param rule: path of the URL
+        :param options: websocket function options
+        :return: decorated function
+        """
+        def decorator(f):
+            self.add_websocket_handler(rule, f,  **options)
+            return f
+        return decorator
