@@ -449,6 +449,7 @@ class Alita(object):
         if not rule.startswith("/"):
             rule = "/" + rule
 
+        @functools.wraps(handler)
         async def websocket_handler(request, *args, **kwargs):
             try:
                 protocol = request.transport.get_protocol()
