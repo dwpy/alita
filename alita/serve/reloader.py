@@ -36,25 +36,6 @@ def _iter_module_files():
                 yield filename
 
 
-def _find_observable_paths(extra_files=None):
-    """Finds all paths that should be observed."""
-    rv = set(os.path.dirname(os.path.abspath(x))
-             if os.path.isfile(x) else os.path.abspath(x)
-             for x in sys.path)
-
-    for filename in extra_files or ():
-        rv.add(os.path.dirname(os.path.abspath(filename)))
-
-    for module in list(sys.modules.values()):
-        fn = getattr(module, '__file__', None)
-        if fn is None:
-            continue
-        fn = os.path.abspath(fn)
-        rv.add(os.path.dirname(fn))
-
-    return _find_common_roots(rv)
-
-
 def _get_args_for_reloading():
     """Returns the executable. This contains a workaround for windows
     if the executable is incorrectly reported to not have the .exe
@@ -72,25 +53,70 @@ def _get_args_for_reloading():
     return rv
 
 
-def _find_common_roots(paths):
-    """Out of some paths it finds the common roots that need monitoring."""
-    paths = [x.split(os.path.sep) for x in paths]
-    root = {}
-    for chunks in sorted(paths, key=len, reverse=True):
-        node = root
-        for chunk in chunks:
-            node = node.setdefault(chunk, {})
-        node.clear()
+def kill_process_children_unix(pid):
+    """Find and kill child processes of a process (maximum two level).
 
-    rv = set()
+    :param pid: PID of parent process (process ID)
+    :return: Nothing
+    """
+    root_process_path = "/proc/{pid}/task/{pid}/children".format(pid=pid)
+    if not os.path.isfile(root_process_path):
+        return
+    with open(root_process_path) as children_list_file:
+        children_list_pid = children_list_file.read().split()
 
-    def _walk(node, path):
-        for prefix, child in node.items():
-            _walk(child, path + (prefix,))
-        if not node:
-            rv.add('/'.join(path))
-    _walk(root, ())
-    return rv
+    for child_pid in children_list_pid:
+        children_proc_path = "/proc/%s/task/%s/children" % (
+            child_pid,
+            child_pid,
+        )
+        if not os.path.isfile(children_proc_path):
+            continue
+        with open(children_proc_path) as children_list_file_2:
+            children_list_pid_2 = children_list_file_2.read().split()
+        for _pid in children_list_pid_2:
+            try:
+                os.kill(int(_pid), signal.SIGTERM)
+            except ProcessLookupError:
+                continue
+        try:
+            os.kill(int(child_pid), signal.SIGTERM)
+        except ProcessLookupError:
+            continue
+
+
+def kill_process_children_osx(pid):
+    """Find and kill child processes of a process.
+
+    :param pid: PID of parent process (process ID)
+    :return: Nothing
+    """
+    subprocess.run(["pkill", "-P", str(pid)])
+
+
+def kill_process_children(pid):
+    """Find and kill child processes of a process.
+
+    :param pid: PID of parent process (process ID)
+    :return: Nothing
+    """
+    if sys.platform == "darwin":
+        kill_process_children_osx(pid)
+    elif sys.platform == "linux":
+        kill_process_children_unix(pid)
+    else:
+        pass  # should signal error here
+
+
+def kill_program_completly(proc):
+    """Kill worker and it's child processes and exit.
+
+    :param proc: worker process (process ID)
+    :return: Nothing
+    """
+    kill_process_children(proc.pid)
+    proc.terminate()
+    os._exit(0)
 
 
 class ReloadLoop(object):
@@ -147,7 +173,12 @@ class AutoReloadLoop(ReloadLoop):
     def run(self):
         mtimes = {}
         worker_process = self.restart_with_reloader()
-        signal.signal(signal.SIGTERM, lambda *args: sys.exit(0))
+        signal.signal(
+            signal.SIGTERM, lambda *args: kill_program_completly(worker_process)
+        )
+        signal.signal(
+            signal.SIGINT, lambda *args: kill_program_completly(worker_process)
+        )
         while True:
             for filename in chain(_iter_module_files(),
                                   self.extra_files):
@@ -161,10 +192,11 @@ class AutoReloadLoop(ReloadLoop):
                     mtimes[filename] = mtime
                     continue
                 elif mtime > old_time:
-                    subprocess.run(["pkill", "-P", str(worker_process.pid)])
+                    kill_process_children(worker_process.pid)
                     worker_process.terminate()
-                    self.run()
-                    self.trigger_reload(filename)
+                    worker_process = self.restart_with_reloader()
+                    mtimes[filename] = mtime
+                    break
             self._sleep(self.interval)
 
 
