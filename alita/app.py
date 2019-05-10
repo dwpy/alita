@@ -259,7 +259,10 @@ class Alita(object):
         elif isinstance(response, self.exception_class):
             return response.get_response()
         else:
-            raise ServerError("Response Object Type invalid!")
+            raise ServerError(
+                'The view function did not return a valid http response. The'
+                ' function must returned a statement.'
+            )
         return response
 
     @make_response.register(str)
