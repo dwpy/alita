@@ -436,11 +436,11 @@ class Alita(object):
                 task.cancel()
         self.is_websocket = enable
 
-    def add_websocket_handler(self, rule, handler, endpoint=None, subprotocols=None):
+    def add_websocket_handler(self, handler, rule, endpoint=None, subprotocols=None):
         """
         add a function to be registered as a websocket route
-        :param rule: path of the URL
         :param handler: websocker handler view
+        :param rule: path of the URL
         :param endpoint: view function endpoint
         :param subprotocols: websocket subprotocols
         :return: decorated function
@@ -483,6 +483,6 @@ class Alita(object):
         :return: decorated function
         """
         def decorator(f):
-            self.add_websocket_handler(rule, f,  **options)
+            self.add_websocket_handler(f, rule,  **options)
             return f
         return decorator

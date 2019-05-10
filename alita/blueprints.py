@@ -40,22 +40,25 @@ class Blueprint(BaseBlueprint):
         return decorator
 
     def add_app_url_rule(self, rule, view_func, **options):
+        is_websocket = options.pop('is_websocket', False)
         endpoint = options.get('endpoint')
-        url_prefix = options.get('url_prefix')
+        url_prefix = options.pop('url_prefix', None)
         if url_prefix is None:
-            options['url_prefix'] = self.url_prefix
+            url_prefix = self.url_prefix
         elif not url_prefix.lstrip('/'):
             raise RuntimeError("Register blueprint url prefix not support empty value.")
-        if self.url_prefix is not None:
+        if url_prefix is not None:
             if rule:
                 rule = '/'.join((
-                    self.url_prefix.rstrip('/'), rule.lstrip('/')))
+                    url_prefix.rstrip('/'), rule.lstrip('/')))
             else:
-                rule = self.url_prefix
+                rule = url_prefix
         if endpoint is None:
             endpoint = self.app.get_endpoint_from_view_func(view_func)
         options['endpoint'] = '%s.%s' % (self.name, endpoint)
-        self.app.add_url_rule(view_func, rule, **options)
+        url_handler = self.app.add_websocket_handler \
+            if is_websocket else self.app.add_url_rule
+        url_handler(view_func, rule, **options)
 
     def add_url_rule(self, rule, view_func, **options):
         endpoint = options.get('endpoint')
@@ -94,10 +97,10 @@ class Blueprint(BaseBlueprint):
         return self.app.url_for(endpoint, **path_params)
 
     def add_websocket_handler(self, rule, handler, **options):
-        self.record(lambda s: s.app.add_websocket_handler(rule, handler, **options))
+        self.add_url_rule(rule, handler, is_websocket=True, **options)
 
     def websocket(self, rule, **options):
         def decorator(f):
-            self.add_websocket_handler(rule, f, **options)
+            self.add_url_rule(rule, f, is_websocket=True, **options)
             return f
         return decorator
