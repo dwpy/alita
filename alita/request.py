@@ -35,6 +35,8 @@ class JSONMixin(object):
             return None
 
         data = self._get_data_for_json(cache=cache)
+        if not data:
+            return None
 
         try:
             rv = json.loads(data)
