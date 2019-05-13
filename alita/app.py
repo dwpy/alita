@@ -341,12 +341,7 @@ class Alita(object):
             except IGNORE_EXCEPTIONS:
                 response = None
             else:
-                if isinstance(exception, self.exception_class):
-                    response = exception.get_response()
-                elif isinstance(exception, self.response_class):
-                    response = exception
-                else:
-                    response = None
+                response = self.make_response(exception)
         if not on_response:
             return response
         if response:
