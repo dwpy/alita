@@ -22,7 +22,7 @@ class JSONMixin(object):
 
     @property
     def json(self):
-        return self.get_json()
+        return self.get_json() or {}
 
     def _get_data_for_json(self, cache):
         return self.get_data(cache=cache)
