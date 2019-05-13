@@ -41,7 +41,7 @@ setup(
         'multidict',
         'itsdangerous',
         'httptools',
-        'websockets',
+        'websockets==6.0',
         'gunicorn',
         'aiofiles',
         'jinja2>=2.10.1'
