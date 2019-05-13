@@ -96,6 +96,15 @@ class Blueprint(BaseBlueprint):
     def url_for(self, endpoint, **path_params):
         return self.app.url_for(endpoint, **path_params)
 
+    def error_handler(self, code_or_exception):
+        def decorator(func):
+            self.register_error_handler(code_or_exception, func)
+            return func
+        return decorator
+
+    def register_error_handler(self, code_or_exception, func):
+        self.record(lambda s: s.app.register_error_handler(code_or_exception, func))
+
     def add_websocket_handler(self, rule, handler, **options):
         self.add_url_rule(rule, handler, is_websocket=True, **options)
 

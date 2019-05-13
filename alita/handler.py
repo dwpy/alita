@@ -66,6 +66,9 @@ class ExceptionHandler(BaseExceptionHandler):
                 handler = self._status_handlers.get(exc.code)
             if handler is None:
                 handler = self._lookup_exception_handler(exc)
+                if isinstance(handler, BaseException) \
+                        and type(exc) != type(handler):
+                    return await self.process_exception(request, handler)
             if handler is None:
                 handler = self.default_handler
             return await self.app.get_awaitable_result(handler, request, exc)
