@@ -252,8 +252,6 @@ class Alita(object):
 
     @method_dispatch
     async def make_response(self, response):
-        if callable(response):
-            response = response()
         if isinstance(response, self.response_class):
             pass
         elif isinstance(response, self.exception_class):
