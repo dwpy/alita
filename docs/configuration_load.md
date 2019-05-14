@@ -2,7 +2,7 @@
 
 ## 字典更新
 ```
-app = Flask(__name__)
+app = Alita(__name__)
 app.config['DEBUG'] = True
 app.config.update(DEBUG=True)
 ```

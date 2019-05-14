@@ -10,7 +10,7 @@ from alita.signals import template_rendered, before_render_template
 
 class Environment(BaseEnvironment):
     """Works like a regular Jinja2 environment but has some additional
-    knowledge of how Flask's blueprint works so that it can prepend the
+    knowledge of how Alita's blueprint works so that it can prepend the
     name of the blueprint to referenced templates if necessary.
     """
 
