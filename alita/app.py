@@ -119,6 +119,7 @@ class Alita(object):
         self.router = None
         self.make_factory()
         self.websocket_tasks = set()
+        self.websocket_handler_connections = {}
 
     def _get_debug(self):
         return self.config['DEBUG']
@@ -444,6 +445,8 @@ class Alita(object):
         self.enable_websocket()
         if not rule.startswith("/"):
             rule = "/" + rule
+        if endpoint is None:
+            endpoint = self.get_endpoint_from_view_func(handler)
 
         @functools.wraps(handler)
         async def websocket_handler(request, *args, **kwargs):
@@ -454,6 +457,7 @@ class Alita(object):
             ws = await protocol.websocket_handshake(request, subprotocols)
             fut = asyncio.ensure_future(handler(request, ws, *args, **kwargs))
             self.websocket_tasks.add(fut)
+            self.websocket_handler_connections.setdefault(endpoint, set()).add(ws)
             try:
                 await fut
             except (asyncio.CancelledError, ConnectionClosed) as ex:
@@ -462,6 +466,10 @@ class Alita(object):
                 raise WebSocketConnectionClosed
             finally:
                 self.websocket_tasks.remove(fut)
+                try:
+                    self.websocket_handler_connections[endpoint].remove(ws)
+                except KeyError:
+                    pass
             await ws.close()
             raise WebSocketConnectionClosed
 
@@ -482,3 +490,10 @@ class Alita(object):
             self.add_websocket_handler(f, rule,  **options)
             return f
         return decorator
+
+    async def send_websocket_message(self, endpoint, message):
+        try:
+            for ws in self.websocket_handler_connections[endpoint]:
+                await ws.send(message)
+        except KeyError:
+            pass
