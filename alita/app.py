@@ -493,8 +493,10 @@ class Alita(object):
         return decorator
 
     async def send_websocket_message(self, endpoint, message):
-        try:
-            for ws in self.websocket_handler_connections[endpoint]:
+        if endpoint not in self.websocket_handler_connections:
+            return
+        for ws in self.websocket_handler_connections[endpoint]:
+            try:
                 await ws.send(message)
-        except KeyError:
-            pass
+            except Exception:
+                continue
