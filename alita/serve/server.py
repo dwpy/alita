@@ -466,6 +466,7 @@ class Server(object):
         self.socket = config.socket
         self.servers = []
         self.server_state = server_state or ServerState()
+        self.app.loop = self.loop
 
         if self.config.debug:
             self.loop.set_debug(True)

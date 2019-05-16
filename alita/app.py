@@ -117,6 +117,7 @@ class Alita(object):
         self.exception_handler = None
         self.static_handler = None
         self.router = None
+        self.loop = None
         self.make_factory()
         self.websocket_tasks = set()
         self.websocket_handler_connections = {}
