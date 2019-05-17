@@ -16,8 +16,6 @@ except ImportError:
 
 
 class GunicornWorker(Worker):
-    http_protocol = HttpProtocol
-
     def __init__(self, *args, **kw):  # pragma: no cover
         super().__init__(*args, **kw)
         cfg = self.cfg
@@ -43,7 +41,6 @@ class GunicornWorker(Worker):
             loop=self.loop,
             debug=is_debug,
             ssl=self.ssl_context,
-            protocol=self.http_protocol
         )
         self._runner = asyncio.ensure_future(self._run(), loop=self.loop)
         try:
