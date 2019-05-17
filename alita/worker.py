@@ -43,7 +43,7 @@ class GunicornWorker(Worker):
             loop=self.loop,
             debug=is_debug,
             ssl=self.ssl_context,
-            http_protocol=self.http_protocol
+            protocol=self.http_protocol
         )
         self._runner = asyncio.ensure_future(self._run(), loop=self.loop)
         try:

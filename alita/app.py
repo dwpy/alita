@@ -13,7 +13,7 @@ from alita.config import Config, ConfigAttribute
 from alita.factory import AppFactory
 from alita.helpers import import_string, cached_property, method_dispatch
 from alita.response import TextResponse, JsonResponse
-from alita.exceptions import ServerError, BadRequest, WebSocketConnectionClosed
+from alita.exceptions import ServerError, WebSocketConnectionClosed
 from alita.handler import IGNORE_EXCEPTIONS
 from collections import UserDict
 from alita.templating import Environment
