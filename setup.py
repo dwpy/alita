@@ -33,7 +33,6 @@ setup(
     platforms='any',
     python_requires='>=3.5',
     install_requires=[
-        'bson',
         'attrs',
         'blinker',
         'click',
