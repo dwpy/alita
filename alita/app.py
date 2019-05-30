@@ -154,8 +154,11 @@ class Alita(object):
     def config_from_jsonfile(self, filename, silent=False):
         self.config.from_json(filename, silent)
 
-    def config_from_object(self, filename):
-        self.config.from_object(filename)
+    def config_from_object(self, obj):
+        self.config.from_object(obj)
+
+    def config_from_mapping(self, obj):
+        self.config.from_mapping(obj)
 
     def make_factory(self):
         self.response_class = self.app_factory.create_base_response_class()
