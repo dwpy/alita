@@ -105,5 +105,8 @@ class Request(BaseRequest, JSONMixin):
             funcs = itertools.chain(funcs, self.app.template_context_processors[bp])
         orig_ctx = context.copy()
         for func in funcs:
-            context.update(self.app.get_awaitable_result(func, self))
+            data = await self.app.get_awaitable_result(func, self)
+            if not isinstance(data, dict):
+                continue
+            context.update(data)
         context.update(orig_ctx)
