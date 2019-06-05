@@ -7,6 +7,7 @@
   - [响应](response.md)
   - [异常](exception.md)
   - [静态文件](static.md)
+  - [WebSocket](websocket.md)
 
 - 配置
   - [加载配置](configuration_load.md)
