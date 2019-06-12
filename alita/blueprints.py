@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 import asyncio
+from jinja2 import FileSystemLoader
 from alita.base import BaseBlueprint
+from alita.helpers import cached_property
 
 
 class Blueprint(BaseBlueprint):
     _has_registered = False
 
-    def __init__(self, name, url_prefix=None):
+    def __init__(self, name, url_prefix=None, template_folder=None):
         self.name = name
         self.url_prefix = url_prefix or '/' + self.name
         self.deferred_functions = []
         self.app = None
+        self.template_folder = template_folder
 
     @property
     def registered(self):
@@ -113,3 +116,8 @@ class Blueprint(BaseBlueprint):
             self.add_url_rule(rule, f, is_websocket=True, **options)
             return f
         return decorator
+
+    @cached_property
+    def jinja_loader(self):
+        if self.template_folder is not None:
+            return FileSystemLoader(self.template_folder)
